@@ -1,0 +1,2433 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐋 سیستم رصد نهنگ مادر | Whale Hunter Pro v3.0</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Vazirmatn', sans-serif; }
+        .whale-glow { box-shadow: 0 0 30px rgba(59, 130, 246, 0.5); }
+        .pump-alert { animation: pumpPulse 0.5s infinite; }
+        @keyframes pumpPulse { 0%, 100% { background-color: rgba(34, 197, 94, 0.2); } 50% { background-color: rgba(34, 197, 94, 0.4); } }
+        .dump-alert { animation: dumpPulse 0.5s infinite; }
+        @keyframes dumpPulse { 0%, 100% { background-color: rgba(239, 68, 68, 0.2); } 50% { background-color: rgba(239, 68, 68, 0.4); } }
+        .whale-entry { animation: whaleEntry 0.5s ease-out; }
+        @keyframes whaleEntry { from { transform: translateX(50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
+        .glass { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(20px); }
+        .signal-valid { border-right: 4px solid #00c853; }
+        .signal-invalid { border-right: 4px solid #ff1744; }
+        .signal-pending { border-right: 4px solid #fbbf24; }
+        .ticker-scroll { animation: tickerScroll 30s linear infinite; }
+        @keyframes tickerScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        .sort-btn { cursor: pointer; user-select: none; }
+        .sort-btn:hover { color: #60a5fa; }
+        .data-grid { border-collapse: separate; border-spacing: 0; }
+        .data-grid th { position: sticky; top: 0; z-index: 10; }
+        .live-dot { animation: livePulse 1s infinite; }
+        @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .db-saved { animation: dbSave 0.5s ease-out; }
+        @keyframes dbSave { 0% { background-color: rgba(34, 197, 94, 0.5); } 100% { background-color: transparent; } }
+        .score-bar { transition: width 0.5s ease; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white min-h-screen">
+    <!-- Ticker Tape -->
+    <div class="bg-slate-900 border-b border-slate-800 py-2 overflow-hidden">
+        <div id="tickerTape" class="flex gap-8 whitespace-nowrap ticker-scroll">
+            <span class="text-slate-400">در حال بارگذاری قیمت‌ها...</span>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="glass border-b border-slate-700 sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex items-center justify-between flex-wrap gap-3">
+                <div class="flex items-center gap-4">
+                    <h1 class="text-2xl font-bold flex items-center gap-2">
+                        <span class="text-4xl">🐋</span>
+                        <span class="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">Whale Hunter Pro v3.0</span>
+                    </h1>
+                    <div id="apiStatusBox" class="flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-400 text-sm">
+                        <span class="w-2 h-2 rounded-full bg-yellow-500 live-dot"></span>
+                        <span id="apiStatus">در حال اتصال...</span>
+                    </div>
+                    <div id="dbStatusBox" class="flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 text-sm">
+                        <span>💾</span>
+                        <span id="dbStatus">DB: 0 رکورد</span>
+                    </div>
+                    <div id="speedIndicator" class="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-700 text-slate-400 text-sm">
+                        <span>⚡</span>
+                        <span id="apiSpeed">-</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <select id="apiSourceSelect" onchange="changeApiSource()" class="bg-slate-800 rounded-lg px-3 py-1 border border-slate-600 text-sm">
+                        <option value="coingecko" selected>🦎 CoinGecko</option>
+                        <option value="kucoin">🟢 KuCoin</option>
+                        <option value="bybit">🟡 Bybit</option>
+                    </select>
+                    <div class="text-xs text-slate-400">
+                        آخرین بروزرسانی: <span id="lastUpdate">-</span>
+                    </div>
+                    <button onclick="exportAllData()" class="bg-green-600 hover:bg-green-700 px-3 py-1 rounded-lg text-sm transition flex items-center gap-1">
+                        📥 خروجی CSV
+                    </button>
+                    <button onclick="clearAllData()" class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded-lg text-sm transition">
+                        🗑️ پاک کردن
+                    </button>
+                </div>
+            </div>
+            <nav class="flex gap-1 flex-wrap mt-3">
+                <button onclick="showTab('dashboard')" class="tab-btn px-3 py-2 rounded-lg hover:bg-slate-700 transition text-sm bg-slate-700" data-tab="dashboard">🎯 داشبورد</button>
+                <button onclick="showTab('market')" class="tab-btn px-3 py-2 rounded-lg hover:bg-slate-700 transition text-sm" data-tab="market">📊 بازار</button>
+                <button onclick="showTab('validation')" class="tab-btn px-3 py-2 rounded-lg hover:bg-slate-700 transition text-sm" data-tab="validation">✅ اعتبارسنجی</button>
+                <button onclick="showTab('whales')" class="tab-btn px-3 py-2 rounded-lg hover:bg-slate-700 transition text-sm" data-tab="whales">🐋 نهنگ‌ها</button>
+                <button onclick="showTab('signals')" class="tab-btn px-3 py-2 rounded-lg hover:bg-slate-700 transition text-sm" data-tab="signals">📡 سیگنال</button>
+                <button onclick="showTab('autotrade')" class="tab-btn px-3 py-2 rounded-lg hover:bg-slate-700 transition text-sm" data-tab="autotrade">🤖 اتو ترید</button>
+                <button onclick="showTab('database')" class="tab-btn px-3 py-2 rounded-lg hover:bg-slate-700 transition text-sm" data-tab="database">💾 دیتابیس</button>
+                <button onclick="showTab('settings')" class="tab-btn px-3 py-2 rounded-lg hover:bg-slate-700 transition text-sm" data-tab="settings">⚙️ تنظیمات</button>
+                <button onclick="showTab('python')" class="tab-btn px-3 py-2 rounded-lg hover:bg-slate-700 transition text-sm" data-tab="python">🐍 کد پایتون</button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-6">
+        <!-- Dashboard Tab -->
+        <div id="dashboard-tab" class="tab-content">
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+                <div class="glass rounded-xl p-4 border border-slate-700">
+                    <div class="text-slate-400 text-xs">BTC</div>
+                    <div class="text-lg font-bold" id="statBTC">-</div>
+                    <div class="text-xs" id="statBTCChange">-</div>
+                </div>
+                <div class="glass rounded-xl p-4 border border-slate-700">
+                    <div class="text-slate-400 text-xs">ETH</div>
+                    <div class="text-lg font-bold" id="statETH">-</div>
+                    <div class="text-xs" id="statETHChange">-</div>
+                </div>
+                <div class="glass rounded-xl p-4 border border-slate-700">
+                    <div class="text-slate-400 text-xs">نهنگ مادر</div>
+                    <div class="text-xl font-bold text-blue-400" id="activeWhales">0</div>
+                </div>
+                <div class="glass rounded-xl p-4 border border-slate-700">
+                    <div class="text-slate-400 text-xs">سیگنال امروز</div>
+                    <div class="text-xl font-bold text-purple-400" id="todaySignals">0</div>
+                </div>
+                <div class="glass rounded-xl p-4 border border-slate-700">
+                    <div class="text-slate-400 text-xs">دقت سیگنال</div>
+                    <div class="text-xl font-bold text-green-400" id="signalAccuracy">0%</div>
+                </div>
+                <div class="glass rounded-xl p-4 border border-slate-700">
+                    <div class="text-slate-400 text-xs">پامپ/دامپ</div>
+                    <div class="text-xl font-bold text-orange-400" id="pumpDumpCount">0</div>
+                </div>
+                <div class="glass rounded-xl p-4 border border-slate-700">
+                    <div class="text-slate-400 text-xs">رکورد DB</div>
+                    <div class="text-xl font-bold text-cyan-400" id="dbRecordCount">0</div>
+                </div>
+                <div class="glass rounded-xl p-4 border border-slate-700">
+                    <div class="text-slate-400 text-xs">سود امروز</div>
+                    <div class="text-xl font-bold text-emerald-400" id="todayProfit">$0</div>
+                </div>
+            </div>
+
+            <!-- Validation Formula Box -->
+            <div class="mb-6 glass rounded-2xl p-4 border border-purple-500/30">
+                <h2 class="text-lg font-bold mb-3 flex items-center gap-2">
+                    <span>🧮</span> فرمول اعتبارسنجی سیگنال
+                    <span class="text-xs bg-purple-500/20 text-purple-400 px-2 py-1 rounded-full">قابل تنظیم</span>
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="p-3 bg-slate-800 rounded-lg">
+                        <div class="text-sm text-green-400 font-bold mb-2">✅ سیگنال معتبر:</div>
+                        <ul class="text-xs text-slate-300 space-y-1">
+                            <li>• اگر <span class="text-green-400">LONG</span> بود و قیمت <span class="text-green-400">بالا</span> رفت → معتبر</li>
+                            <li>• اگر <span class="text-red-400">SHORT</span> بود و قیمت <span class="text-red-400">پایین</span> آمد → معتبر</li>
+                            <li>• حداقل تغییر: <span id="minChangeDisplay" class="text-yellow-400">0.1%</span></li>
+                        </ul>
+                    </div>
+                    <div class="p-3 bg-slate-800 rounded-lg">
+                        <div class="text-sm text-red-400 font-bold mb-2">❌ سیگنال نامعتبر:</div>
+                        <ul class="text-xs text-slate-300 space-y-1">
+                            <li>• اگر LONG بود و قیمت پایین آمد → نامعتبر</li>
+                            <li>• اگر SHORT بود و قیمت بالا رفت → نامعتبر</li>
+                            <li>• اگر قیمت تغییر نکرد (کمتر از حداقل) → نامعتبر</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="mt-3 p-3 bg-blue-500/10 rounded-lg border border-blue-500/30">
+                    <div class="text-sm text-blue-400 font-bold mb-2">⏱️ اعتبارسنجی 3 مرحله‌ای (9 دقیقه):</div>
+                    <div class="flex gap-4 text-xs">
+                        <span>🔵 مرحله 1: دقیقه 3</span>
+                        <span>🔵 مرحله 2: دقیقه 6</span>
+                        <span>🟢 مرحله 3: دقیقه 9 (نهایی)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pump/Dump Alerts -->
+            <div class="mb-6 glass rounded-2xl p-4 border border-slate-700">
+                <h2 class="text-lg font-bold mb-3 flex items-center gap-2">
+                    <span>🚨</span> هشدار پامپ و دامپ (لحظه‌ای)
+                    <span class="text-xs bg-red-500/20 text-red-400 px-2 py-1 rounded-full live-dot">LIVE</span>
+                </h2>
+                <div id="pumpDumpAlerts" class="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+                    <div class="text-slate-400 text-sm py-4">در انتظار تشخیص پامپ/دامپ...</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Live Whale Activity -->
+                <div class="lg:col-span-2 glass rounded-2xl p-6 border border-slate-700">
+                    <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                        <span>🔴</span> فعالیت لحظه‌ای نهنگ‌ها
+                        <span class="text-xs bg-red-500/20 text-red-400 px-2 py-1 rounded-full live-dot">LIVE</span>
+                    </h2>
+                    <div id="liveWhaleActivity" class="space-y-2 max-h-80 overflow-y-auto scrollbar-thin">
+                        <div class="text-center text-slate-400 py-8">رصد خودکار با شناسایی معاملات بزرگ</div>
+                    </div>
+                </div>
+
+                <!-- Whale Flow -->
+                <div class="glass rounded-2xl p-6 border border-slate-700">
+                    <h2 class="text-xl font-bold mb-4">💧 Whale Flow</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span>ورود نهنگ</span>
+                                <span class="text-green-400" id="whaleInflow">$0</span>
+                            </div>
+                            <div class="w-full bg-slate-700 rounded-full h-3">
+                                <div id="inflowBar" class="bg-gradient-to-r from-green-500 to-emerald-400 h-3 rounded-full transition-all" style="width: 50%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span>خروج نهنگ</span>
+                                <span class="text-red-400" id="whaleOutflow">$0</span>
+                            </div>
+                            <div class="w-full bg-slate-700 rounded-full h-3">
+                                <div id="outflowBar" class="bg-gradient-to-r from-red-500 to-rose-400 h-3 rounded-full transition-all" style="width: 50%"></div>
+                            </div>
+                        </div>
+                        <div class="pt-4 border-t border-slate-600">
+                            <div class="flex justify-between">
+                                <span>خالص جریان</span>
+                                <span class="font-bold text-lg" id="netFlow">$0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Market Tab -->
+        <div id="market-tab" class="tab-content hidden">
+            <!-- ... market content ... -->
+        </div>
+
+        <!-- Validation Tab (New) -->
+        <div id="validation-tab" class="tab-content hidden">
+            <div class="glass rounded-2xl p-6 border border-slate-700">
+                <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+                    <h2 class="text-xl font-bold flex items-center gap-2">
+                        ✅ اعتبارسنجی و رصد دقیق سیگنال‌ها
+                        <span class="text-xs bg-purple-500/20 text-purple-400 px-2 py-1 rounded-full live-dot">LIVE</span>
+                    </h2>
+                    <div class="flex gap-2 items-center flex-wrap">
+                        <input type="text" id="valSearch" placeholder="🔍 جستجوی نماد..." 
+                            class="bg-slate-800 rounded-lg px-4 py-2 border border-slate-600 text-sm w-32"
+                            onkeyup="filterValidationData()">
+                            
+                        <select id="valSourceFilter" onchange="filterValidationData()" class="bg-slate-800 rounded-lg px-3 py-2 border border-slate-600 text-sm">
+                            <option value="all">همه منابع</option>
+                            <option value="signal">📡 سیگنال‌ها</option>
+                            <option value="whale">🐋 نهنگ‌ها</option>
+                            <option value="pump_dump">📈 پامپ/دامپ</option>
+                        </select>
+                        
+                        <select id="valStatusFilter" onchange="filterValidationData()" class="bg-slate-800 rounded-lg px-3 py-2 border border-slate-600 text-sm">
+                            <option value="all">همه وضعیت‌ها</option>
+                            <option value="valid">✅ معتبر</option>
+                            <option value="pending">⏳ در انتظار</option>
+                            <option value="invalid">❌ نامعتبر</option>
+                        </select>
+                        
+                        <button onclick="loadValidationData()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm transition">
+                            🔄 بروزرسانی
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Parametric Settings for Validation -->
+                <div class="mb-4 p-4 bg-slate-800/50 rounded-xl border border-slate-700 flex flex-wrap gap-4 items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm text-slate-300">⚙️ تنظیمات اتوترید:</span>
+                    </div>
+                    <div class="flex items-center gap-4 flex-wrap">
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs text-slate-400">حداقل امتیاز برای ترید:</label>
+                            <input type="number" id="valMinScore" value="70" min="50" max="100" class="w-16 bg-slate-700 rounded px-2 py-1 text-center text-sm border border-slate-600">
+                        </div>
+                        <button onclick="saveValidationSettings()" class="bg-green-600/80 hover:bg-green-600 px-3 py-1 rounded text-xs transition">
+                            ذخیره تنظیمات
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+                    <table class="w-full text-sm data-grid">
+                        <thead class="bg-slate-800">
+                            <tr class="text-slate-400 border-b border-slate-700">
+                                <th class="text-right py-3 px-3 cursor-pointer hover:text-white" onclick="sortValidation('time')">زمان</th>
+                                <th class="text-right py-3 px-3 cursor-pointer hover:text-white" onclick="sortValidation('symbol')">نماد</th>
+                                <th class="text-right py-3 px-3 cursor-pointer hover:text-white" onclick="sortValidation('source')">منبع</th>
+                                <th class="text-right py-3 px-3 cursor-pointer hover:text-white" onclick="sortValidation('type')">نوع</th>
+                                <th class="text-right py-3 px-3 cursor-pointer hover:text-white" onclick="sortValidation('price')">قیمت</th>
+                                <th class="text-right py-3 px-3 cursor-pointer hover:text-white" onclick="sortValidation('score')">امتیاز/وزن</th>
+                                <th class="text-right py-3 px-3">جزئیات / مرحله</th>
+                                <th class="text-right py-3 px-3 cursor-pointer hover:text-white" onclick="sortValidation('status')">وضعیت</th>
+                            </tr>
+                        </thead>
+                        <tbody id="validationDataGrid">
+                            <tr><td colspan="8" class="text-center py-8 text-slate-400">در حال بارگذاری داده‌ها...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-4 flex justify-between items-center text-sm text-slate-400">
+                    <div>نمایش <span id="valShowingCount">0</span> رکورد</div>
+                    <div class="text-xs">سیگنال‌های با امتیاز بالای 70 پس از 3 سیکل به اتوترید ارسال می‌شوند.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Market Tab -->
+                    <h2 class="text-xl font-bold flex items-center gap-2">
+                        📊 بازار لحظه‌ای (هر 10 ثانیه)
+                        <span class="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded-full live-dot">LIVE</span>
+                    </h2>
+                    <div class="flex gap-2 items-center">
+                        <input type="text" id="marketSearch" placeholder="🔍 جستجو..." 
+                            class="bg-slate-800 rounded-lg px-4 py-2 border border-slate-600 text-sm w-32"
+                            onkeyup="filterMarketData()">
+                        <select id="marketFilter" onchange="filterMarketData()" class="bg-slate-800 rounded-lg px-3 py-2 border border-slate-600 text-sm">
+                            <option value="all">همه</option>
+                            <option value="pump">🟢 پامپ (+5%)</option>
+                            <option value="dump">🔴 دامپ (-5%)</option>
+                            <option value="whale">🐋 حجم بالا</option>
+                        </select>
+                        <button onclick="refreshMarketData()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm transition">
+                            🔄 بروزرسانی
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+                    <table class="w-full text-sm data-grid">
+                        <thead class="bg-slate-800">
+                            <tr class="text-slate-400 border-b border-slate-700">
+                                <th class="text-right py-3 px-3 sort-btn" onclick="sortMarket('rank')">#</th>
+                                <th class="text-right py-3 px-3 sort-btn" onclick="sortMarket('symbol')">نماد</th>
+                                <th class="text-right py-3 px-3 sort-btn" onclick="sortMarket('price')">قیمت</th>
+                                <th class="text-right py-3 px-3 sort-btn" onclick="sortMarket('change')">تغییر 24h</th>
+                                <th class="text-right py-3 px-3 sort-btn" onclick="sortMarket('high')">بیشترین</th>
+                                <th class="text-right py-3 px-3 sort-btn" onclick="sortMarket('low')">کمترین</th>
+                                <th class="text-right py-3 px-3 sort-btn" onclick="sortMarket('quoteVolume')">حجم USDT</th>
+                                <th class="text-right py-3 px-3">وضعیت</th>
+                                <th class="text-right py-3 px-3">عملیات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="marketDataGrid">
+                            <tr><td colspan="9" class="text-center py-8 text-slate-400">در حال بارگذاری...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-4 flex justify-between items-center text-sm text-slate-400">
+                    <div>نمایش <span id="showingCount">0</span> از <span id="totalCount">0</span> ارز</div>
+                    <div>آخرین بروزرسانی: <span id="marketLastUpdate">-</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Whales Tab -->
+        <div id="whales-tab" class="tab-content hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Whale Settings -->
+                <div class="glass rounded-2xl p-6 border border-slate-700">
+                    <h2 class="text-xl font-bold mb-4">⚙️ تنظیمات رصد</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-slate-400 text-sm">آستانه نهنگ مادر ($)</label>
+                            <input type="number" id="whaleThreshold" value="500000" class="w-full bg-slate-800 rounded-lg px-4 py-3 mt-1 border border-slate-600">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 text-sm">آستانه پامپ/دامپ (%)</label>
+                            <input type="number" id="pumpThreshold" value="3" step="0.5" class="w-full bg-slate-800 rounded-lg px-4 py-3 mt-1 border border-slate-600">
+                        </div>
+                        <div class="p-3 bg-green-500/10 rounded-lg border border-green-500/30">
+                            <div class="flex items-center gap-2 text-green-400">
+                                <span class="live-dot">●</span>
+                                <span>رصد خودکار فعال</span>
+                            </div>
+                            <div class="text-xs text-slate-400 mt-1">معاملات بزرگ به صورت خودکار شناسایی می‌شوند</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mother Whale List -->
+                <div class="lg:col-span-2 glass rounded-2xl p-6 border border-slate-700">
+                    <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                        🐋 نهنگ‌های مادر شناسایی شده
+                        <span class="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full" id="whaleCount">0</span>
+                    </h2>
+                    <div id="motherWhaleList" class="space-y-3 max-h-[500px] overflow-y-auto scrollbar-thin">
+                        <div class="text-center text-slate-400 py-8">در انتظار شناسایی نهنگ مادر...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Whale Patterns -->
+            <div class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="glass rounded-2xl p-5 border border-yellow-500/30">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="text-3xl">🎣</span>
+                        <div>
+                            <h3 class="font-bold">نوک‌زدن به طعمه</h3>
+                            <p class="text-xs text-slate-400">تله نهنگ</p>
+                        </div>
+                    </div>
+                    <div id="baitPeckingList" class="space-y-2 max-h-32 overflow-y-auto scrollbar-thin">
+                        <div class="text-center text-slate-400 text-sm py-2">-</div>
+                    </div>
+                </div>
+
+                <div class="glass rounded-2xl p-5 border border-green-500/30">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="text-3xl">🚀</span>
+                        <div>
+                            <h3 class="font-bold">پامپ تشخیص داده</h3>
+                            <p class="text-xs text-slate-400">افزایش ناگهانی</p>
+                        </div>
+                    </div>
+                    <div id="pumpList" class="space-y-2 max-h-32 overflow-y-auto scrollbar-thin">
+                        <div class="text-center text-slate-400 text-sm py-2">-</div>
+                    </div>
+                </div>
+
+                <div class="glass rounded-2xl p-5 border border-red-500/30">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="text-3xl">💥</span>
+                        <div>
+                            <h3 class="font-bold">دامپ تشخیص داده</h3>
+                            <p class="text-xs text-slate-400">کاهش ناگهانی</p>
+                        </div>
+                    </div>
+                    <div id="dumpList" class="space-y-2 max-h-32 overflow-y-auto scrollbar-thin">
+                        <div class="text-center text-slate-400 text-sm py-2">-</div>
+                    </div>
+                </div>
+
+                <div class="glass rounded-2xl p-5 border border-blue-500/30">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="text-3xl">📥</span>
+                        <div>
+                            <h3 class="font-bold">ورود نهنگ</h3>
+                            <p class="text-xs text-slate-400">+$500K</p>
+                        </div>
+                    </div>
+                    <div id="whaleEntryList" class="space-y-2 max-h-32 overflow-y-auto scrollbar-thin">
+                        <div class="text-center text-slate-400 text-sm py-2">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Signals Tab -->
+        <div id="signals-tab" class="tab-content hidden">
+            <div class="glass rounded-2xl p-6 border border-slate-700">
+                <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+                    <h2 class="text-xl font-bold">📡 سیگنال‌ها با اعتبارسنجی 3 مرحله‌ای (9 دقیقه)</h2>
+                    <div class="flex gap-2">
+                        <button onclick="filterSignals('all')" class="px-3 py-1 rounded-lg bg-slate-700 text-sm hover:bg-slate-600">همه</button>
+                        <button onclick="filterSignals('valid')" class="px-3 py-1 rounded-lg bg-green-500/20 text-green-400 text-sm">✅ معتبر</button>
+                        <button onclick="filterSignals('invalid')" class="px-3 py-1 rounded-lg bg-red-500/20 text-red-400 text-sm">❌ نامعتبر</button>
+                        <button onclick="filterSignals('pending')" class="px-3 py-1 rounded-lg bg-yellow-500/20 text-yellow-400 text-sm">⏳ در انتظار</button>
+                        <button onclick="exportSignals()" class="px-3 py-1 rounded-lg bg-blue-600 text-sm">📥 CSV</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-slate-400 border-b border-slate-700 bg-slate-800">
+                                <th class="text-right py-3 px-2">زمان ثبت</th>
+                                <th class="text-right py-3 px-2">نماد</th>
+                                <th class="text-right py-3 px-2">نوع</th>
+                                <th class="text-right py-3 px-2">قیمت ورود</th>
+                                <th class="text-right py-3 px-2">قیمت 3 دقیقه</th>
+                                <th class="text-right py-3 px-2">قیمت 6 دقیقه</th>
+                                <th class="text-right py-3 px-2">قیمت 9 دقیقه</th>
+                                <th class="text-right py-3 px-2">تغییر نهایی</th>
+                                <th class="text-right py-3 px-2">امتیاز</th>
+                                <th class="text-right py-3 px-2">اعتبار</th>
+                            </tr>
+                        </thead>
+                        <tbody id="signalsTable">
+                            <tr><td colspan="10" class="text-center py-8 text-slate-400">سیگنالی ثبت نشده</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Signal Stats -->
+            <div class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="glass rounded-xl p-4 border border-slate-700 text-center">
+                    <div class="text-3xl font-bold text-green-400" id="validSignalsCount">0</div>
+                    <div class="text-slate-400 text-sm">معتبر</div>
+                </div>
+                <div class="glass rounded-xl p-4 border border-slate-700 text-center">
+                    <div class="text-3xl font-bold text-red-400" id="invalidSignalsCount">0</div>
+                    <div class="text-slate-400 text-sm">نامعتبر</div>
+                </div>
+                <div class="glass rounded-xl p-4 border border-slate-700 text-center">
+                    <div class="text-3xl font-bold text-yellow-400" id="pendingSignalsCount">0</div>
+                    <div class="text-slate-400 text-sm">در انتظار</div>
+                </div>
+                <div class="glass rounded-xl p-4 border border-slate-700 text-center">
+                    <div class="text-3xl font-bold text-blue-400" id="avgAccuracy">0%</div>
+                    <div class="text-slate-400 text-sm">دقت کل</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Auto Trade Tab -->
+        <div id="autotrade-tab" class="tab-content hidden">
+            <div class="mb-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+                <div class="flex items-center gap-2 text-yellow-400 font-bold">
+                    ⚠️ هشدار مهم
+                </div>
+                <p class="text-sm text-slate-300 mt-1">برای اتو ترید واقعی، باید کد پایتون را روی سرور اجرا کنید. این بخش برای تست و شبیه‌سازی است.</p>
+            </div>
+
+            <!-- Auto Trade Queue -->
+            <div class="mb-6 glass rounded-2xl p-6 border border-green-500/30">
+                <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    🎯 صف اتو ترید (مرتب شده بر اساس امتیاز)
+                    <span class="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded-full">معتبرترین‌ها بالا</span>
+                </h2>
+                <div id="autoTradeQueue" class="space-y-2 max-h-64 overflow-y-auto scrollbar-thin">
+                    <div class="text-center text-slate-400 py-4">سیگنال معتبری برای اتو ترید وجود ندارد</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Exchange Connection -->
+                <div class="glass rounded-2xl p-6 border border-slate-700">
+                    <h2 class="text-xl font-bold mb-4">🔗 اتصال صرافی</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-slate-400 text-sm">صرافی</label>
+                            <select id="exchangeSelect" class="w-full bg-slate-800 rounded-lg px-4 py-3 mt-1 border border-slate-600">
+                                <option value="lbank">LBank</option>
+                                <option value="bitunix">Bitunix</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-slate-400 text-sm">API Key</label>
+                            <input type="text" id="apiKey" placeholder="API Key" class="w-full bg-slate-800 rounded-lg px-4 py-3 mt-1 border border-slate-600 font-mono text-sm">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 text-sm">Secret Key</label>
+                            <input type="password" id="secretKey" placeholder="Secret Key" class="w-full bg-slate-800 rounded-lg px-4 py-3 mt-1 border border-slate-600 font-mono text-sm">
+                        </div>
+                        <button onclick="saveApiKeys()" class="w-full bg-blue-600 py-3 rounded-xl font-bold hover:bg-blue-700 transition">
+                            💾 ذخیره کلیدها
+                        </button>
+                        <button onclick="testConnection()" class="w-full bg-purple-600 py-3 rounded-xl font-bold hover:bg-purple-700 transition mt-2">
+                            🔌 تست اتصال و دریافت اطلاعات
+                        </button>
+                        <div id="connectionStatus" class="text-center text-sm text-slate-400">کلیدها ذخیره نشده</div>
+                        
+                        <!-- Account Info Box -->
+                        <div id="accountInfoBox" class="hidden mt-4 p-4 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-xl border border-green-500/30">
+                            <h3 class="font-bold text-green-400 mb-3 flex items-center gap-2">
+                                <span>👤</span> اطلاعات حساب
+                            </h3>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">صرافی:</span>
+                                    <span id="accountExchange" class="font-bold">-</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">نام کاربری:</span>
+                                    <span id="accountName" class="font-bold text-cyan-400">-</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">UID:</span>
+                                    <span id="accountUID" class="font-bold font-mono text-xs">-</span>
+                                </div>
+                                <div class="flex justify-between border-t border-slate-600 pt-2 mt-2">
+                                    <span class="text-slate-400">موجودی USDT:</span>
+                                    <span id="accountBalance" class="font-bold text-green-400 text-lg">$0.00</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">موجودی در دسترس:</span>
+                                    <span id="accountAvailable" class="font-bold text-emerald-400">$0.00</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">موجودی قفل شده:</span>
+                                    <span id="accountLocked" class="font-bold text-orange-400">$0.00</span>
+                                </div>
+                            </div>
+                            <div class="mt-3 text-xs text-slate-500 text-center">
+                                آخرین بروزرسانی: <span id="accountLastUpdate">-</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Connection Error Box -->
+                        <div id="connectionErrorBox" class="hidden mt-4 p-4 bg-red-500/10 rounded-xl border border-red-500/30">
+                            <div class="flex items-center gap-2 text-red-400 font-bold">
+                                <span>❌</span> خطا در اتصال
+                            </div>
+                            <p id="connectionError" class="text-sm text-slate-300 mt-2">-</p>
+                            <div class="mt-3 text-xs text-slate-400">
+                                💡 راهنما: کلیدهای API را بررسی کنید و مطمئن شوید دسترسی‌های لازم فعال است.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trade Settings -->
+                <div class="glass rounded-2xl p-6 border border-slate-700">
+                    <h2 class="text-xl font-bold mb-4">⚙️ تنظیمات معامله</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-slate-400 text-sm">مبلغ هر معامله (USDT)</label>
+                            <input type="number" id="tradeAmount" value="5" min="5" max="100" class="w-full bg-slate-800 rounded-lg px-4 py-3 mt-1 border border-slate-600">
+                            <div class="text-xs text-slate-500 mt-1">پیشنهاد: 5-10 دلار برای شروع</div>
+                        </div>
+                        <div>
+                            <label class="text-slate-400 text-sm">اهرم</label>
+                            <select id="tradeLeverage" class="w-full bg-slate-800 rounded-lg px-4 py-3 mt-1 border border-slate-600">
+                                <option value="3">3x (کم ریسک)</option>
+                                <option value="5" selected>5x (متوسط)</option>
+                                <option value="10">10x (پرریسک)</option>
+                                <option value="20">20x (خیلی پرریسک)</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-slate-400 text-sm">حد ضرر (%)</label>
+                                <input type="number" id="stopLoss" value="2" step="0.5" class="w-full bg-slate-800 rounded-lg px-4 py-2 mt-1 border border-slate-600">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 text-sm">حد سود (%)</label>
+                                <input type="number" id="takeProfit" value="4" step="0.5" class="w-full bg-slate-800 rounded-lg px-4 py-2 mt-1 border border-slate-600">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-slate-400 text-sm">کمیسیون صرافی (%)</label>
+                            <input type="number" id="commission" value="0.05" step="0.01" class="w-full bg-slate-800 rounded-lg px-4 py-3 mt-1 border border-slate-600">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 text-sm">حداقل امتیاز برای ترید</label>
+                            <input type="number" id="minScoreForTrade" value="70" min="50" max="100" class="w-full bg-slate-800 rounded-lg px-4 py-3 mt-1 border border-slate-600">
+                        </div>
+                        <div class="p-3 bg-orange-500/10 rounded-lg border border-orange-500/30">
+                            <div class="text-sm text-orange-400 font-bold mb-2">🛡️ محدودیت‌های امنیتی</div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-slate-400 text-xs">حداکثر ترید روزانه</label>
+                                    <input type="number" id="maxDailyTrades" value="4" min="1" max="20" class="w-full bg-slate-700 rounded px-3 py-2 mt-1 border border-slate-600 text-sm">
+                                </div>
+                                <div>
+                                    <label class="text-slate-400 text-xs">حداکثر ضرر متوالی</label>
+                                    <input type="number" id="maxConsecutiveLosses" value="4" min="1" max="10" class="w-full bg-slate-700 rounded px-3 py-2 mt-1 border border-slate-600 text-sm">
+                                </div>
+                            </div>
+                            <div class="text-xs text-slate-400 mt-2">اگر به محدودیت برسد، اتوترید غیرفعال می‌شود</div>
+                        </div>
+                        <button onclick="saveTradeSettings()" class="w-full bg-green-600 py-2 rounded-xl hover:bg-green-700 transition">
+                            💾 ذخیره تنظیمات
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Auto Trade Control -->
+                <div class="glass rounded-2xl p-6 border border-slate-700">
+                    <h2 class="text-xl font-bold mb-4">🤖 کنترل</h2>
+                    <div class="space-y-4">
+                        <div class="p-4 bg-slate-800 rounded-xl text-center">
+                            <div class="text-sm text-slate-400 mb-2">وضعیت</div>
+                            <div id="autoTradeStatus" class="text-2xl font-bold text-slate-400">غیرفعال</div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="p-3 bg-slate-800 rounded-lg text-center">
+                                <div class="text-lg font-bold text-green-400" id="autoWins">0</div>
+                                <div class="text-xs text-slate-400">موفق</div>
+                            </div>
+                            <div class="p-3 bg-slate-800 rounded-lg text-center">
+                                <div class="text-lg font-bold text-red-400" id="autoLosses">0</div>
+                                <div class="text-xs text-slate-400">ناموفق</div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="p-3 bg-slate-800 rounded-lg text-center">
+                                <div class="text-lg font-bold text-blue-400" id="dailyTradeCount">0</div>
+                                <div class="text-xs text-slate-400">ترید امروز</div>
+                            </div>
+                            <div class="p-3 bg-slate-800 rounded-lg text-center">
+                                <div class="text-lg font-bold text-orange-400" id="consecutiveLosses">0</div>
+                                <div class="text-xs text-slate-400">ضرر متوالی</div>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-slate-800 rounded-lg space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span>سود/زیان خالص</span>
+                                <span id="autoPnl" class="font-bold text-green-400">$0.00</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span>کمیسیون پرداختی</span>
+                                <span id="autoCommission" class="font-bold text-yellow-400">$0.00</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span>سود خالص واقعی</span>
+                                <span id="autoNetPnl" class="font-bold text-emerald-400">$0.00</span>
+                            </div>
+                        </div>
+                        <button onclick="startAutoTrade()" id="startAutoBtn" class="w-full bg-gradient-to-r from-green-600 to-emerald-600 py-4 rounded-xl font-bold text-lg hover:opacity-90 transition">
+                            ▶️ شروع اتو ترید (دمو)
+                        </button>
+                        <button onclick="stopAutoTrade()" id="stopAutoBtn" class="w-full bg-gradient-to-r from-red-600 to-rose-600 py-4 rounded-xl font-bold text-lg hover:opacity-90 transition hidden">
+                            ⏹️ توقف
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trade Log -->
+            <div class="mt-6 glass rounded-2xl p-6 border border-slate-700">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold">📋 لاگ معاملات</h2>
+                    <button onclick="exportTrades()" class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-lg text-sm">📥 خروجی CSV</button>
+                </div>
+                <div id="tradeLog" class="h-48 overflow-y-auto scrollbar-thin bg-slate-800 rounded-lg p-3 font-mono text-sm space-y-1">
+                    <div class="text-slate-400">[سیستم] آماده برای شروع...</div>
+                </div>
+            </div>
+
+            <!-- Daily/Monthly Report -->
+            <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="glass rounded-2xl p-6 border border-slate-700">
+                    <h2 class="text-xl font-bold mb-4">📅 گزارش روزانه</h2>
+                    <div class="space-y-3">
+                        <div class="flex justify-between p-3 bg-slate-800 rounded-lg">
+                            <span>سود خالص</span>
+                            <span class="font-bold text-green-400" id="dailyProfit">$0.00</span>
+                        </div>
+                        <div class="flex justify-between p-3 bg-slate-800 rounded-lg">
+                            <span>تعداد معاملات</span>
+                            <span class="font-bold" id="dailyTrades">0</span>
+                        </div>
+                        <div class="flex justify-between p-3 bg-slate-800 rounded-lg">
+                            <span>Win Rate</span>
+                            <span class="font-bold text-blue-400" id="dailyWinRate">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-2xl p-6 border border-slate-700">
+                    <h2 class="text-xl font-bold mb-4">📆 گزارش ماهانه</h2>
+                    <div class="space-y-3">
+                        <div class="flex justify-between p-3 bg-slate-800 rounded-lg">
+                            <span>سود خالص</span>
+                            <span class="font-bold text-green-400" id="monthlyProfit">$0.00</span>
+                        </div>
+                        <div class="flex justify-between p-3 bg-slate-800 rounded-lg">
+                            <span>تعداد معاملات</span>
+                            <span class="font-bold" id="monthlyTrades">0</span>
+                        </div>
+                        <div class="flex justify-between p-3 bg-slate-800 rounded-lg">
+                            <span>Win Rate</span>
+                            <span class="font-bold text-blue-400" id="monthlyWinRate">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Database Tab -->
+        <div id="database-tab" class="tab-content hidden">
+            <div class="glass rounded-2xl p-6 border border-slate-700">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold flex items-center gap-2">
+                        💾 دیتابیس محلی (LocalStorage)
+                        <span class="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded-full">ذخیره خودکار</span>
+                    </h2>
+                    <div class="flex gap-2">
+                        <button onclick="exportAllData()" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-sm transition">
+                            📥 خروجی همه
+                        </button>
+                        <button onclick="importData()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm transition">
+                            📤 ورودی داده
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="p-4 bg-slate-800 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-blue-400" id="dbWhalesCount">0</div>
+                        <div class="text-sm text-slate-400">نهنگ‌ها</div>
+                        <button onclick="exportWhales()" class="mt-2 text-xs bg-blue-600 px-2 py-1 rounded">CSV</button>
+                    </div>
+                    <div class="p-4 bg-slate-800 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-purple-400" id="dbSignalsCount">0</div>
+                        <div class="text-sm text-slate-400">سیگنال‌ها</div>
+                        <button onclick="exportSignals()" class="mt-2 text-xs bg-purple-600 px-2 py-1 rounded">CSV</button>
+                    </div>
+                    <div class="p-4 bg-slate-800 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-green-400" id="dbTradesCount">0</div>
+                        <div class="text-sm text-slate-400">معاملات</div>
+                        <button onclick="exportTrades()" class="mt-2 text-xs bg-green-600 px-2 py-1 rounded">CSV</button>
+                    </div>
+                    <div class="p-4 bg-slate-800 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-orange-400" id="dbPumpDumpCount">0</div>
+                        <div class="text-sm text-slate-400">پامپ/دامپ</div>
+                        <button onclick="exportPumpDumps()" class="mt-2 text-xs bg-orange-600 px-2 py-1 rounded">CSV</button>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-slate-800 rounded-xl">
+                    <h3 class="font-bold mb-3">آخرین رکوردهای ذخیره شده</h3>
+                    <div id="dbRecentRecords" class="space-y-2 max-h-64 overflow-y-auto scrollbar-thin text-sm font-mono">
+                        <div class="text-slate-400">هنوز رکوردی ثبت نشده...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="settings-tab" class="tab-content hidden">
+            <div class="glass rounded-2xl p-6 border border-slate-700">
+                <h2 class="text-xl font-bold mb-6">⚙️ تنظیمات اعتبارسنجی</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Validation Settings -->
+                    <div class="p-4 bg-slate-800 rounded-xl">
+                        <h3 class="font-bold mb-4 text-purple-400">🧮 فرمول اعتبارسنجی</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-slate-400 text-sm">حداقل تغییر قیمت برای معتبر بودن (%)</label>
+                                <input type="number" id="minPriceChange" value="0.1" step="0.05" min="0" max="5" 
+                                    class="w-full bg-slate-700 rounded-lg px-4 py-3 mt-1 border border-slate-600"
+                                    onchange="updateValidationFormula()">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 text-sm">زمان اعتبارسنجی مرحله 1 (دقیقه)</label>
+                                <input type="number" id="validationTime1" value="3" min="1" max="10" 
+                                    class="w-full bg-slate-700 rounded-lg px-4 py-3 mt-1 border border-slate-600">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 text-sm">زمان اعتبارسنجی مرحله 2 (دقیقه)</label>
+                                <input type="number" id="validationTime2" value="6" min="2" max="15" 
+                                    class="w-full bg-slate-700 rounded-lg px-4 py-3 mt-1 border border-slate-600">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 text-sm">زمان اعتبارسنجی مرحله 3 - نهایی (دقیقه)</label>
+                                <input type="number" id="validationTime3" value="9" min="3" max="20" 
+                                    class="w-full bg-slate-700 rounded-lg px-4 py-3 mt-1 border border-slate-600">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Scoring Settings -->
+                    <div class="p-4 bg-slate-800 rounded-xl">
+                        <h3 class="font-bold mb-4 text-green-400">📊 امتیازدهی سیگنال</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-slate-400 text-sm">وزن مرحله 1 (%)</label>
+                                <input type="number" id="weight1" value="20" min="0" max="100" 
+                                    class="w-full bg-slate-700 rounded-lg px-4 py-3 mt-1 border border-slate-600">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 text-sm">وزن مرحله 2 (%)</label>
+                                <input type="number" id="weight2" value="30" min="0" max="100" 
+                                    class="w-full bg-slate-700 rounded-lg px-4 py-3 mt-1 border border-slate-600">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 text-sm">وزن مرحله 3 (%)</label>
+                                <input type="number" id="weight3" value="50" min="0" max="100" 
+                                    class="w-full bg-slate-700 rounded-lg px-4 py-3 mt-1 border border-slate-600">
+                            </div>
+                            <div class="p-3 bg-slate-700 rounded-lg">
+                                <div class="text-xs text-slate-400">فرمول امتیاز نهایی:</div>
+                                <div class="text-sm text-green-400 mt-1">Score = (V1×W1 + V2×W2 + V3×W3) / 100</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex gap-4">
+                    <button onclick="saveValidationSettings()" class="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-xl font-bold transition">
+                        💾 ذخیره تنظیمات
+                    </button>
+                    <button onclick="resetValidationSettings()" class="bg-slate-600 hover:bg-slate-700 px-6 py-3 rounded-xl font-bold transition">
+                        🔄 بازنشانی پیش‌فرض
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Python Code Tab -->
+        <div id="python-tab" class="tab-content hidden">
+            <div class="glass rounded-2xl p-6 border border-slate-700">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold">🐍 کد پایتون برای اتو ترید واقعی</h2>
+                    <button onclick="copyPythonCode()" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-sm transition">
+                        📋 کپی کد
+                    </button>
+                </div>
+                <div class="bg-slate-900 rounded-xl p-4 overflow-x-auto">
+                    <pre id="pythonCode" class="text-sm text-green-400 font-mono whitespace-pre-wrap"></pre>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-slate-800 border border-slate-600 rounded-xl p-4 shadow-2xl transform translate-y-20 opacity-0 transition-all duration-300 z-50 max-w-sm">
+        <div class="flex items-center gap-3">
+            <span id="toastIcon" class="text-2xl">✅</span>
+            <div>
+                <div id="toastTitle" class="font-bold"></div>
+                <div id="toastMessage" class="text-sm text-slate-400"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file input for import -->
+    <input type="file" id="fileInput" accept=".json,.csv" class="hidden" onchange="handleFileImport(event)">
+
+    <script>
+        // ===== VALIDATION CONFIG =====
+        const VALIDATION_CONFIG = {
+            minPriceChange: 0.1,
+            times: [3, 6, 9],
+            weights: [20, 30, 50]
+        };
+
+        // ===== GLOBAL STATE =====
+        const state = {
+            marketData: [],
+            marketDataCache: null,
+            lastFetchTime: 0,
+            previousPrices: {},
+            whales: [],
+            signals: [],
+            trades: [],
+            pumpDumps: [],
+            validationData: [], // New validation data from API
+            validationSort: { column: 'time', direction: 'desc' }, // New sort state
+            whaleFlow: { inflow: 0, outflow: 0 },
+            isAutoTrading: false,
+            stats: {
+                validSignals: 0,
+                invalidSignals: 0,
+                pendingSignals: 0,
+                wins: 0,
+                losses: 0,
+                pnl: 0,
+                commission: 0,
+                dailyTrades: 0,
+                consecutiveLosses: 0,
+                lastTradeDate: null
+            },
+            sortColumn: 'quoteVolume',
+            sortDirection: 'desc',
+            signalFilter: 'all'
+        };
+
+        // ===== DATABASE (LocalStorage) =====
+        const DB = {
+            save(key, data) {
+                try {
+                    const existing = this.load(key) || [];
+                    existing.push({...data, savedAt: new Date().toISOString()});
+                    localStorage.setItem(`wh_${key}`, JSON.stringify(existing));
+                    this.updateStats();
+                    return true;
+                } catch(e) {
+                    console.error('DB Save Error:', e);
+                    return false;
+                }
+            },
+            
+            update(key, id, newData) {
+                try {
+                    const existing = this.load(key) || [];
+                    const index = existing.findIndex(item => item.id === id);
+                    if (index !== -1) {
+                        existing[index] = {...existing[index], ...newData, updatedAt: new Date().toISOString()};
+                        localStorage.setItem(`wh_${key}`, JSON.stringify(existing));
+                    }
+                    return true;
+                } catch(e) {
+                    console.error('DB Update Error:', e);
+                    return false;
+                }
+            },
+            
+            load(key) {
+                try {
+                    return JSON.parse(localStorage.getItem(`wh_${key}`)) || [];
+                } catch(e) {
+                    return [];
+                }
+            },
+            
+            clear(key) {
+                if (key) {
+                    localStorage.removeItem(`wh_${key}`);
+                } else {
+                    ['whales', 'signals', 'trades', 'pumpDumps', 'settings'].forEach(k => 
+                        localStorage.removeItem(`wh_${k}`)
+                    );
+                }
+                this.updateStats();
+            },
+            
+            updateStats() {
+                const whales = this.load('whales').length;
+                const signals = this.load('signals').length;
+                const trades = this.load('trades').length;
+                const pumpDumps = this.load('pumpDumps').length;
+                const total = whales + signals + trades + pumpDumps;
+                
+                document.getElementById('dbStatus').textContent = `DB: ${total} رکورد`;
+                document.getElementById('dbRecordCount').textContent = total;
+                document.getElementById('dbWhalesCount').textContent = whales;
+                document.getElementById('dbSignalsCount').textContent = signals;
+                document.getElementById('dbTradesCount').textContent = trades;
+                document.getElementById('dbPumpDumpCount').textContent = pumpDumps;
+            },
+            
+            exportCSV(key) {
+                const data = this.load(key);
+                if (!data.length) {
+                    showToast('خطا', 'داده‌ای برای خروجی وجود ندارد', 'error');
+                    return;
+                }
+                
+                const headers = Object.keys(data[0]);
+                const csv = [
+                    headers.join(','),
+                    ...data.map(row => headers.map(h => JSON.stringify(row[h] || '')).join(','))
+                ].join('\n');
+                
+                const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `whale_hunter_${key}_${new Date().toISOString().split('T')[0]}.csv`;
+                link.click();
+                
+                showToast('✅ خروجی', `فایل ${key}.csv دانلود شد`, 'success');
+            }
+        };
+
+        // ===== VALIDATION FUNCTIONS =====
+        function validateSignal(signal, currentPrice, stage) {
+            const entryPrice = signal.entryPrice;
+            const priceChange = ((currentPrice - entryPrice) / entryPrice) * 100;
+            const minChange = VALIDATION_CONFIG.minPriceChange;
+            
+            let isValid = false;
+            
+            if (signal.type === 'LONG') {
+                if (priceChange >= minChange) {
+                    isValid = true;
+                } else if (priceChange <= -minChange) {
+                    isValid = false;
+                } else {
+                    isValid = false;
+                }
+            } else {
+                if (priceChange <= -minChange) {
+                    isValid = true;
+                } else if (priceChange >= minChange) {
+                    isValid = false;
+                } else {
+                    isValid = false;
+                }
+            }
+            
+            return {
+                isValid,
+                priceChange,
+                stage
+            };
+        }
+
+        function calculateSignalScore(signal) {
+            if (!signal.validations || signal.validations.length === 0) return 0;
+            
+            let score = 0;
+            const weights = VALIDATION_CONFIG.weights;
+            
+            signal.validations.forEach((v, i) => {
+                if (v && v.isValid) {
+                    score += weights[i] || 0;
+                }
+            });
+            
+            return score;
+        }
+
+        function getSignalStatus(signal) {
+            if (!signal.validations || signal.validations.length < 3) {
+                return 'pending';
+            }
+            
+            const validCount = signal.validations.filter(v => v && v.isValid).length;
+            
+            if (validCount >= 2) {
+                return 'valid';
+            } else {
+                return 'invalid';
+            }
+        }
+
+        // ===== VALIDATION DATAGRID FUNCTIONS =====
+        async function loadValidationData() {
+            try {
+                const response = await fetch('/api/validation_data');
+                if (!response.ok) throw new Error('Network response was not ok');
+                const data = await response.json();
+                
+                state.validationData = data;
+                filterValidationData();
+                
+                // Update showing count
+                document.getElementById('valShowingCount').textContent = data.length;
+            } catch (error) {
+                console.error('Error loading validation data:', error);
+                showToast('خطا', 'عدم دریافت داده‌های اعتبارسنجی', 'error');
+            }
+        }
+
+        function filterValidationData() {
+            const search = document.getElementById('valSearch').value.toLowerCase();
+            const sourceFilter = document.getElementById('valSourceFilter').value;
+            const statusFilter = document.getElementById('valStatusFilter').value;
+            
+            let filtered = state.validationData.filter(item => {
+                // Search
+                if (search && !item.symbol.toLowerCase().includes(search)) return false;
+                
+                // Source Filter
+                if (sourceFilter !== 'all') {
+                    if (sourceFilter === 'signal' && item.type !== 'signal') return false;
+                    if (sourceFilter === 'whale' && item.type !== 'whale') return false;
+                    if (sourceFilter === 'pump_dump' && item.type !== 'pump_dump') return false;
+                }
+                
+                // Status Filter
+                if (statusFilter !== 'all') {
+                    if (statusFilter === 'valid' && item.status !== 'valid' && item.status !== 'detected') return false; // detected is valid for whales
+                    if (statusFilter === 'pending' && item.status !== 'pending') return false;
+                    if (statusFilter === 'invalid' && item.status !== 'invalid') return false;
+                }
+                
+                return true;
+            });
+            
+            // Sort
+            const col = state.validationSort.column;
+            const dir = state.validationSort.direction === 'asc' ? 1 : -1;
+            
+            filtered.sort((a, b) => {
+                let valA = a[col];
+                let valB = b[col];
+                
+                if (typeof valA === 'string') valA = valA.toLowerCase();
+                if (typeof valB === 'string') valB = valB.toLowerCase();
+                
+                if (valA < valB) return -1 * dir;
+                if (valA > valB) return 1 * dir;
+                return 0;
+            });
+            
+            renderValidationGrid(filtered);
+        }
+
+        function sortValidation(column) {
+            if (state.validationSort.column === column) {
+                state.validationSort.direction = state.validationSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                state.validationSort.column = column;
+                state.validationSort.direction = 'desc';
+            }
+            filterValidationData();
+        }
+
+        function renderValidationGrid(data) {
+            const tbody = document.getElementById('validationDataGrid');
+            if (!tbody) return;
+            
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-slate-400">رکوردی یافت نشد</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = data.map(item => {
+                let statusClass = 'text-slate-400';
+                let statusIcon = '⏳';
+                
+                if (item.status === 'valid' || item.status === 'detected') {
+                    statusClass = 'text-green-400';
+                    statusIcon = '✅';
+                } else if (item.status === 'invalid') {
+                    statusClass = 'text-red-400';
+                    statusIcon = '❌';
+                }
+                
+                let typeBadge = '';
+                if (item.type === 'signal') typeBadge = '<span class="bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded text-xs">سیگنال</span>';
+                else if (item.type === 'whale') typeBadge = '<span class="bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded text-xs">نهنگ</span>';
+                else if (item.type === 'pump_dump') typeBadge = '<span class="bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded text-xs">پامپ</span>';
+                
+                return `
+                    <tr class="border-b border-slate-700/50 hover:bg-slate-800/50 transition">
+                        <td class="py-3 px-3 text-right text-xs text-slate-400 font-mono" dir="ltr">${new Date(item.time).toLocaleTimeString()}</td>
+                        <td class="py-3 px-3 text-right font-bold">${item.symbol}</td>
+                        <td class="py-3 px-3 text-right text-xs">${item.source}</td>
+                        <td class="py-3 px-3 text-right">${typeBadge} <span class="text-xs ml-1 ${item.action === 'LONG' || item.action === 'BUY' || item.action === 'PUMP' ? 'text-green-400' : 'text-red-400'}">${item.action}</span></td>
+                        <td class="py-3 px-3 text-right font-mono text-slate-300">$${item.price}</td>
+                        <td class="py-3 px-3 text-right">
+                            <div class="flex items-center gap-2 justify-end">
+                                <span class="font-bold ${item.score >= 70 ? 'text-green-400' : item.score >= 40 ? 'text-yellow-400' : 'text-red-400'}">${Math.round(item.score)}</span>
+                                <div class="w-16 bg-slate-700 rounded-full h-1.5">
+                                    <div class="h-1.5 rounded-full ${item.score >= 70 ? 'bg-green-500' : item.score >= 40 ? 'bg-yellow-500' : 'bg-red-500'}" style="width: ${Math.min(100, item.score)}%"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-3 px-3 text-right text-xs text-slate-400">${item.details}</td>
+                        <td class="py-3 px-3 text-right ${statusClass} font-bold text-xs">${statusIcon} ${item.status}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        async function saveValidationSettings() {
+            const minScore = document.getElementById('valMinScore').value;
+            
+            try {
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        min_score_for_trade: minScore
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showToast('✅ ذخیره شد', 'تنظیمات اعتبارسنجی بروز شد', 'success');
+                    // Update global config if needed
+                    if (document.getElementById('minScoreForTrade')) {
+                        document.getElementById('minScoreForTrade').value = minScore;
+                    }
+                } else {
+                    showToast('خطا', result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                showToast('خطا', 'خطا در ذخیره تنظیمات', 'error');
+            }
+        }
+        
+        function loadValidationSettings() {
+            // Load from API or LocalStorage
+            // Here we assume defaults or values set in HTML, but we can fetch from API
+            fetch('/api/config')
+                .then(res => res.json())
+                .then(config => {
+                    if (config.min_score_for_trade) {
+                        const el = document.getElementById('valMinScore');
+                        if (el) el.value = config.min_score_for_trade;
+                    }
+                })
+                .catch(err => console.log('Config load error:', err));
+        }
+
+        // ===== INITIALIZATION =====
+        document.addEventListener('DOMContentLoaded', () => {
+            loadValidationSettings();
+            
+            const savedApi = localStorage.getItem('wh_apiSource');
+            if (savedApi) {
+                document.getElementById('apiSourceSelect').value = savedApi;
+            }
+            
+            showTab('dashboard');
+            loadSettings();
+            fetchMarketData();
+            setInterval(fetchMarketData, 10000);
+            DB.updateStats();
+            updateRecentRecords();
+            updateValidationFormula();
+        });
+
+        // ===== API FUNCTIONS =====
+        let currentApiSource = 'coingecko';
+        
+        function changeApiSource() {
+            currentApiSource = document.getElementById('apiSourceSelect').value;
+            localStorage.setItem('wh_apiSource', currentApiSource);
+            fetchMarketData();
+            showToast('🔄 تغییر API', `منبع تغییر کرد به ${currentApiSource}`, 'success');
+        }
+        
+        function updateApiStatus(name, success) {
+            const box = document.getElementById('apiStatusBox');
+            const status = document.getElementById('apiStatus');
+            if (success) {
+                box.className = 'flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-sm';
+                status.textContent = `متصل به ${name} ✓`;
+            } else {
+                box.className = 'flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/20 text-red-400 text-sm';
+                status.textContent = 'خطا در اتصال';
+            }
+        }
+
+        async function tryCoinGecko() {
+            try {
+                const response = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false&price_change_percentage=24h', {
+                    cache: 'no-store',
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (!response.ok) throw new Error('API Error');
+                const data = await response.json();
+                updateApiStatus('CoinGecko', true);
+                return data.map(t => ({
+                    symbol: t.symbol.toUpperCase() + 'USDT',
+                    lastPrice: t.current_price,
+                    priceChangePercent: t.price_change_percentage_24h || 0,
+                    highPrice: t.high_24h,
+                    lowPrice: t.low_24h,
+                    volume: t.total_volume / t.current_price,
+                    quoteVolume: t.total_volume
+                }));
+            } catch (e) {
+                console.error('CoinGecko Error:', e);
+                updateApiStatus('CoinGecko', false);
+                return null;
+            }
+        }
+
+        async function tryKuCoin() {
+            try {
+                const response = await fetch('https://api.kucoin.com/api/v1/market/allTickers', {
+                    cache: 'no-store'
+                });
+                if (!response.ok) throw new Error('API Error');
+                const json = await response.json();
+                updateApiStatus('KuCoin', true);
+                return json.data.ticker.filter(t => t.symbol.endsWith('-USDT')).slice(0, 100).map(t => ({
+                    symbol: t.symbol.replace('-', ''),
+                    lastPrice: parseFloat(t.last),
+                    priceChangePercent: parseFloat(t.changeRate) * 100,
+                    highPrice: parseFloat(t.high),
+                    lowPrice: parseFloat(t.low),
+                    volume: parseFloat(t.vol),
+                    quoteVolume: parseFloat(t.volValue)
+                }));
+            } catch (e) {
+                console.error('KuCoin Error:', e);
+                updateApiStatus('KuCoin', false);
+                return null;
+            }
+        }
+
+        async function tryBybit() {
+            try {
+                const response = await fetch('https://api.bybit.com/v5/market/tickers?category=spot', {
+                    cache: 'no-store'
+                });
+                if (!response.ok) throw new Error('API Error');
+                const json = await response.json();
+                updateApiStatus('Bybit', true);
+                return json.result.list.filter(t => t.symbol.endsWith('USDT')).slice(0, 100).map(t => ({
+                    symbol: t.symbol,
+                    lastPrice: parseFloat(t.lastPrice),
+                    priceChangePercent: parseFloat(t.price24hPcnt) * 100,
+                    highPrice: parseFloat(t.highPrice24h),
+                    lowPrice: parseFloat(t.lowPrice24h),
+                    volume: parseFloat(t.volume24h),
+                    quoteVolume: parseFloat(t.turnover24h)
+                }));
+            } catch (e) {
+                console.error('Bybit Error:', e);
+                updateApiStatus('Bybit', false);
+                return null;
+            }
+        }
+
+        // ===== FETCH MARKET DATA =====
+        async function fetchMarketData() {
+            try {
+                const now = Date.now();
+                if (now - state.lastFetchTime < 5000 && state.marketDataCache) {
+                    console.log('Using cached data...');
+                    return;
+                }
+                state.lastFetchTime = now;
+                
+                let data = null;
+                currentApiSource = document.getElementById('apiSourceSelect').value;
+                
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 8000);
+                
+                try {
+                    if (currentApiSource === 'coingecko') {
+                        data = await tryCoinGecko();
+                    } else if (currentApiSource === 'kucoin') {
+                        data = await tryKuCoin();
+                    } else if (currentApiSource === 'bybit') {
+                        data = await tryBybit();
+                    }
+                } finally {
+                    clearTimeout(timeout);
+                }
+                
+                if (!data) {
+                    data = await tryCoinGecko();
+                    if (data) currentApiSource = 'coingecko';
+                }
+                if (!data) {
+                    data = await tryKuCoin();
+                    if (data) currentApiSource = 'kucoin';
+                }
+                if (!data) {
+                    data = await tryBybit();
+                    if (data) currentApiSource = 'bybit';
+                }
+                
+                if (!data) {
+                    if (state.marketDataCache) {
+                        console.log('API failed, using cache...');
+                        return;
+                    }
+                    throw new Error('همه API ها ناموفق');
+                }
+                
+                state.marketDataCache = data;
+                const fetchTime = Date.now() - now;
+                const speedEl = document.getElementById('apiSpeed');
+                if (fetchTime < 1000) {
+                    speedEl.textContent = `${fetchTime}ms 🟢`;
+                } else if (fetchTime < 3000) {
+                    speedEl.textContent = `${(fetchTime/1000).toFixed(1)}s 🟡`;
+                } else {
+                    speedEl.textContent = `${(fetchTime/1000).toFixed(1)}s 🔴`;
+                }
+                
+                const oldPrices = {...state.previousPrices};
+                const threshold = parseFloat(document.getElementById('pumpThreshold')?.value || 3);
+                const whaleThreshold = parseFloat(document.getElementById('whaleThreshold')?.value || 500000);
+                
+                state.marketData = data.map((t, i) => {
+                    const symbol = t.symbol;
+                    const price = parseFloat(t.lastPrice);
+                    const change = parseFloat(t.priceChangePercent);
+                    const quoteVolume = parseFloat(t.quoteVolume);
+                    
+                    if (oldPrices[symbol]) {
+                        const quickChange = ((price - oldPrices[symbol]) / oldPrices[symbol]) * 100;
+                        if (Math.abs(quickChange) >= threshold) {
+                            addPumpDump(symbol, price, quickChange);
+                        }
+                    }
+                    
+                    if (quoteVolume >= whaleThreshold) {
+                        detectWhale(symbol, price, quoteVolume, change);
+                    }
+                    
+                    state.previousPrices[symbol] = price;
+                    
+                    return {
+                        rank: i + 1,
+                        symbol: symbol.replace('USDT', ''),
+                        fullSymbol: symbol,
+                        price,
+                        change,
+                        high: parseFloat(t.highPrice) || price,
+                        low: parseFloat(t.lowPrice) || price,
+                        volume: parseFloat(t.volume) || 0,
+                        quoteVolume,
+                        isPump: change > 5,
+                        isDump: change < -5,
+                        hasWhale: quoteVolume > 100000000
+                    };
+                });
+
+                state.marketData.sort((a, b) => b.quoteVolume - a.quoteVolume);
+                state.marketData.forEach((m, i) => m.rank = i + 1);
+
+                checkPendingValidations();
+
+                updateMarketGrid();
+                updateTicker();
+                updateDashboardStats();
+                updateAutoTradeQueue();
+                document.getElementById('lastUpdate').textContent = formatTime(new Date());
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function refreshMarketData() {
+            fetchMarketData();
+            showToast('🔄 بروزرسانی', 'داده‌ها بروز شد', 'success');
+        }
+
+        // ===== CHECK PENDING VALIDATIONS =====
+        function checkPendingValidations() {
+            const now = Date.now();
+            const times = VALIDATION_CONFIG.times;
+            
+            state.signals.forEach(signal => {
+                if (signal.status === 'pending' || (signal.validations && signal.validations.length < 3)) {
+                    const signalTime = new Date(signal.timestamp).getTime();
+                    const elapsedMinutes = (now - signalTime) / 60000;
+                    
+                    const currentPrice = state.marketData.find(m => m.fullSymbol === signal.fullSymbol)?.price;
+                    if (!currentPrice) return;
+                    
+                    if (!signal.validations) signal.validations = [];
+                    
+                    if (elapsedMinutes >= times[0] && !signal.validations[0]) {
+                        signal.validations[0] = validateSignal(signal, currentPrice, 1);
+                        signal.price3min = currentPrice;
+                        signal.validations[0].price = currentPrice;
+                        DB.update('signals', signal.id, signal);
+                    }
+                    
+                    if (elapsedMinutes >= times[1] && !signal.validations[1]) {
+                        signal.validations[1] = validateSignal(signal, currentPrice, 2);
+                        signal.price6min = currentPrice;
+                        signal.validations[1].price = currentPrice;
+                        DB.update('signals', signal.id, signal);
+                    }
+                    
+                    if (elapsedMinutes >= times[2] && !signal.validations[2]) {
+                        signal.validations[2] = validateSignal(signal, currentPrice, 3);
+                        signal.price9min = currentPrice;
+                        signal.validations[2].price = currentPrice;
+                        
+                        signal.status = getSignalStatus(signal);
+                        signal.score = calculateSignalScore(signal);
+                        signal.finalPriceChange = ((currentPrice - signal.entryPrice) / signal.entryPrice) * 100;
+                        
+                        if (signal.status === 'valid') {
+                            state.stats.validSignals++;
+                        } else {
+                            state.stats.invalidSignals++;
+                        }
+                        state.stats.pendingSignals--;
+                        
+                        DB.update('signals', signal.id, signal);
+                        
+                        showToast(
+                            signal.status === 'valid' ? '✅ سیگنال معتبر' : '❌ سیگنال نامعتبر',
+                            `${signal.symbol}: امتیاز ${signal.score}`,
+                            signal.status === 'valid' ? 'success' : 'error'
+                        );
+                    }
+                }
+            });
+            
+            updateSignalsUI();
+        }
+
+        // ===== WHALE DETECTION =====
+        function detectWhale(symbol, price, volume, change) {
+            const existing = state.whales.find(w => w.symbol === symbol.replace('USDT', '') && Date.now() - new Date(w.timestamp).getTime() < 60000);
+            if (existing) return;
+            
+            const whale = {
+                id: Date.now(),
+                symbol: symbol.replace('USDT', ''),
+                fullSymbol: symbol,
+                price,
+                volume,
+                change,
+                type: change > 0 ? 'buy' : 'sell',
+                timestamp: new Date().toISOString()
+            };
+            
+            state.whales.unshift(whale);
+            if (state.whales.length > 100) state.whales.pop();
+            
+            DB.save('whales', whale);
+            createSignal(whale);
+            
+            if (whale.type === 'buy') {
+                state.whaleFlow.inflow += volume;
+            } else {
+                state.whaleFlow.outflow += volume;
+            }
+            
+            updateWhaleUI();
+            showToast('🐋 نهنگ مادر!', `${whale.symbol}: $${formatNumber(volume)}`, whale.type === 'buy' ? 'success' : 'error');
+        }
+
+        // ===== PUMP/DUMP =====
+        function addPumpDump(symbol, price, change) {
+            const existing = state.pumpDumps.find(p => p.fullSymbol === symbol && Date.now() - new Date(p.timestamp).getTime() < 30000);
+            if (existing) return;
+            
+            const alert = {
+                id: Date.now(),
+                symbol: symbol.replace('USDT', ''),
+                fullSymbol: symbol,
+                price,
+                change,
+                type: change > 0 ? 'pump' : 'dump',
+                timestamp: new Date().toISOString()
+            };
+            
+            state.pumpDumps.unshift(alert);
+            if (state.pumpDumps.length > 50) state.pumpDumps.pop();
+            
+            DB.save('pumpDumps', alert);
+            updatePumpDumpAlerts();
+            
+            showToast(change > 0 ? '🚀 پامپ!' : '💥 دامپ!', `${alert.symbol}: ${change > 0 ? '+' : ''}${change.toFixed(2)}%`, change > 0 ? 'success' : 'error');
+        }
+
+        function updatePumpDumpAlerts() {
+            const container = document.getElementById('pumpDumpAlerts');
+            if (state.pumpDumps.length === 0) return;
+            
+            container.innerHTML = state.pumpDumps.slice(0, 10).map(p => `
+                <div class="flex-shrink-0 p-3 rounded-xl border ${p.type === 'pump' ? 'border-green-500/30 bg-green-500/10' : 'border-red-500/30 bg-red-500/10'} min-w-[150px]">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">${p.type === 'pump' ? '🚀' : '💥'}</span>
+                        <span class="font-bold">${p.symbol}</span>
+                    </div>
+                    <div class="text-lg font-bold ${p.type === 'pump' ? 'text-green-400' : 'text-red-400'}">${p.change > 0 ? '+' : ''}${p.change.toFixed(2)}%</div>
+                    <div class="text-xs text-slate-400">${formatTime(p.timestamp)}</div>
+                </div>
+            `).join('');
+            
+            document.getElementById('pumpDumpCount').textContent = state.pumpDumps.length;
+        }
+
+        // ===== SIGNALS =====
+        function createSignal(whale) {
+            const signal = {
+                id: Date.now(),
+                whaleId: whale.id,
+                symbol: whale.symbol,
+                fullSymbol: whale.fullSymbol,
+                type: whale.type === 'buy' ? 'LONG' : 'SHORT',
+                entryPrice: whale.price,
+                timestamp: new Date().toISOString(),
+                volume: whale.volume,
+                status: 'pending',
+                validations: [],
+                score: 0,
+                source: 'Whale Detection'
+            };
+
+            state.signals.unshift(signal);
+            state.stats.pendingSignals++;
+            
+            DB.save('signals', signal);
+            updateSignalsUI();
+        }
+
+        function filterSignals(filter) {
+            state.signalFilter = filter;
+            updateSignalsUI();
+        }
+
+        function updateSignalsUI() {
+            const table = document.getElementById('signalsTable');
+            
+            let filteredSignals = state.signals;
+            if (state.signalFilter !== 'all') {
+                filteredSignals = state.signals.filter(s => s.status === state.signalFilter);
+            }
+            
+            if (filteredSignals.length === 0) {
+                table.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-slate-400">سیگنالی ثبت نشده</td></tr>';
+            } else {
+                table.innerHTML = filteredSignals.slice(0, 50).map(s => {
+                    const v1 = s.validations?.[0];
+                    const v2 = s.validations?.[1];
+                    const v3 = s.validations?.[2];
+                    
+                    return `
+                    <tr class="border-b border-slate-700/50 ${s.status === 'valid' ? 'signal-valid' : s.status === 'invalid' ? 'signal-invalid' : 'signal-pending'}">
+                        <td class="py-3 px-2 text-xs">${formatDateTime(s.timestamp)}</td>
+                        <td class="py-3 px-2 font-bold">${s.symbol}</td>
+                        <td class="py-3 px-2">
+                            <span class="px-2 py-0.5 rounded text-xs ${s.type === 'LONG' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">${s.type}</span>
+                        </td>
+                        <td class="py-3 px-2 font-mono">$${formatPrice(s.entryPrice)}</td>
+                        <td class="py-3 px-2 font-mono ${v1 ? (v1.isValid ? 'text-green-400' : 'text-red-400') : 'text-slate-400'}">${v1 ? '$' + formatPrice(v1.price) : '⏳'}</td>
+                        <td class="py-3 px-2 font-mono ${v2 ? (v2.isValid ? 'text-green-400' : 'text-red-400') : 'text-slate-400'}">${v2 ? '$' + formatPrice(v2.price) : '⏳'}</td>
+                        <td class="py-3 px-2 font-mono ${v3 ? (v3.isValid ? 'text-green-400' : 'text-red-400') : 'text-slate-400'}">${v3 ? '$' + formatPrice(v3.price) : '⏳'}</td>
+                        <td class="py-3 px-2 ${s.finalPriceChange ? (s.finalPriceChange > 0 ? 'text-green-400' : 'text-red-400') : ''}">${s.finalPriceChange ? (s.finalPriceChange > 0 ? '+' : '') + s.finalPriceChange.toFixed(2) + '%' : '-'}</td>
+                        <td class="py-3 px-2">
+                            <div class="flex items-center gap-1">
+                                <div class="w-12 bg-slate-700 rounded-full h-2">
+                                    <div class="h-2 rounded-full score-bar ${s.score >= 70 ? 'bg-green-500' : s.score >= 40 ? 'bg-yellow-500' : 'bg-red-500'}" style="width: ${s.score}%"></div>
+                                </div>
+                                <span class="text-xs">${s.score}</span>
+                            </div>
+                        </td>
+                        <td class="py-3 px-2">${s.status === 'valid' ? '✅' : s.status === 'invalid' ? '❌' : '⏳'}</td>
+                    </tr>
+                `}).join('');
+            }
+
+            document.getElementById('validSignalsCount').textContent = state.stats.validSignals;
+            document.getElementById('invalidSignalsCount').textContent = state.stats.invalidSignals;
+            document.getElementById('pendingSignalsCount').textContent = state.stats.pendingSignals;
+            
+            const total = state.stats.validSignals + state.stats.invalidSignals;
+            const accuracy = total > 0 ? (state.stats.validSignals / total * 100) : 0;
+            document.getElementById('avgAccuracy').textContent = accuracy.toFixed(1) + '%';
+            document.getElementById('signalAccuracy').textContent = accuracy.toFixed(0) + '%';
+        }
+
+        // ===== AUTO TRADE QUEUE =====
+        function updateAutoTradeQueue() {
+            const container = document.getElementById('autoTradeQueue');
+            const minScore = parseInt(document.getElementById('minScoreForTrade')?.value || 70);
+            
+            const validSignals = state.signals
+                .filter(s => s.status === 'valid' && s.score >= minScore)
+                .sort((a, b) => b.score - a.score);
+            
+            if (validSignals.length === 0) {
+                container.innerHTML = '<div class="text-center text-slate-400 py-4">سیگنال معتبری با امتیاز بالای ' + minScore + ' وجود ندارد</div>';
+                return;
+            }
+            
+            container.innerHTML = validSignals.slice(0, 10).map((s, i) => `
+                <div class="p-3 rounded-lg border ${s.type === 'LONG' ? 'border-green-500/30 bg-green-500/5' : 'border-red-500/30 bg-red-500/5'} flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <span class="text-lg font-bold text-slate-400">#${i + 1}</span>
+                        <span class="text-xl">${s.type === 'LONG' ? '📈' : '📉'}</span>
+                        <div>
+                            <div class="font-bold">${s.symbol} <span class="text-xs px-2 py-0.5 rounded ${s.type === 'LONG' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">${s.type}</span></div>
+                            <div class="text-xs text-slate-400">قیمت ورود: $${formatPrice(s.entryPrice)}</div>
+                        </div>
+                    </div>
+                    <div class="text-left">
+                        <div class="flex items-center gap-2">
+                            <div class="w-16 bg-slate-700 rounded-full h-3">
+                                <div class="h-3 rounded-full bg-gradient-to-r from-green-500 to-emerald-400 score-bar" style="width: ${s.score}%"></div>
+                            </div>
+                            <span class="font-bold text-green-400">${s.score}</span>
+                        </div>
+                        <div class="text-xs text-slate-400 mt-1">${formatTime(s.timestamp)}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ===== MARKET GRID =====
+        function updateMarketGrid() {
+            const grid = document.getElementById('marketDataGrid');
+            const search = document.getElementById('marketSearch')?.value?.toLowerCase() || '';
+            const filter = document.getElementById('marketFilter')?.value || 'all';
+            
+            let filtered = state.marketData.filter(m => {
+                if (search && !m.symbol.toLowerCase().includes(search)) return false;
+                if (filter === 'pump' && !m.isPump) return false;
+                if (filter === 'dump' && !m.isDump) return false;
+                if (filter === 'whale' && !m.hasWhale) return false;
+                return true;
+            });
+            
+            filtered.sort((a, b) => {
+                let aVal = a[state.sortColumn];
+                let bVal = b[state.sortColumn];
+                if (typeof aVal === 'string') {
+                    return state.sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                }
+                return state.sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+            });
+
+            document.getElementById('showingCount').textContent = filtered.length;
+            document.getElementById('totalCount').textContent = state.marketData.length;
+            document.getElementById('marketLastUpdate').textContent = formatTime(new Date());
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '<tr><td colspan="9" class="text-center py-8 text-slate-400">نتیجه‌ای یافت نشد</td></tr>';
+                return;
+            }
+
+            grid.innerHTML = filtered.slice(0, 100).map(m => `
+                <tr class="border-b border-slate-700/50 hover:bg-slate-800/50 transition ${m.isPump ? 'bg-green-500/5' : m.isDump ? 'bg-red-500/5' : ''}">
+                    <td class="py-3 px-3 text-slate-400">${m.rank}</td>
+                    <td class="py-3 px-3 font-bold">${m.symbol} ${m.hasWhale ? '🐋' : ''}</td>
+                    <td class="py-3 px-3 font-mono">$${formatPrice(m.price)}</td>
+                    <td class="py-3 px-3 font-bold ${m.change >= 0 ? 'text-green-400' : 'text-red-400'}">${m.change >= 0 ? '+' : ''}${m.change.toFixed(2)}%</td>
+                    <td class="py-3 px-3 text-green-400">$${formatPrice(m.high)}</td>
+                    <td class="py-3 px-3 text-red-400">$${formatPrice(m.low)}</td>
+                    <td class="py-3 px-3 text-blue-400">$${formatNumber(m.quoteVolume)}</td>
+                    <td class="py-3 px-3">
+                        ${m.isPump ? '<span class="px-2 py-0.5 rounded text-xs bg-green-500/20 text-green-400">پامپ</span>' : 
+                          m.isDump ? '<span class="px-2 py-0.5 rounded text-xs bg-red-500/20 text-red-400">دامپ</span>' : 
+                          '<span class="px-2 py-0.5 rounded text-xs bg-slate-700 text-slate-400">عادی</span>'}
+                    </td>
+                    <td class="py-3 px-3">
+                        <button onclick="trackSymbol('${m.fullSymbol}')" class="bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded text-xs">رصد</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterMarketData() { updateMarketGrid(); }
+        
+        function sortMarket(column) {
+            if (state.sortColumn === column) {
+                state.sortDirection = state.sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                state.sortColumn = column;
+                state.sortDirection = 'desc';
+            }
+            updateMarketGrid();
+        }
+
+        function trackSymbol(symbol) {
+            showToast('🔍 رصد', `${symbol} اضافه شد`, 'success');
+        }
+
+        // ===== WHALE UI =====
+        function updateWhaleUI() {
+            const liveActivity = document.getElementById('liveWhaleActivity');
+            if (state.whales.length === 0) {
+                liveActivity.innerHTML = '<div class="text-center text-slate-400 py-8">در انتظار شناسایی نهنگ...</div>';
+            } else {
+                liveActivity.innerHTML = state.whales.slice(0, 15).map(w => `
+                    <div class="p-3 rounded-lg border ${w.type === 'buy' ? 'border-green-500/30 bg-green-500/5' : 'border-red-500/30 bg-red-500/5'} whale-entry">
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xl">${w.type === 'buy' ? '📥' : '📤'}</span>
+                                <div>
+                                    <div class="font-bold">${w.symbol} 🐋</div>
+                                    <div class="text-xs text-slate-400">${formatDateTime(w.timestamp)}</div>
+                                </div>
+                            </div>
+                            <div class="text-left">
+                                <div class="font-bold ${w.type === 'buy' ? 'text-green-400' : 'text-red-400'}">$${formatNumber(w.volume)}</div>
+                                <div class="text-xs">@ $${formatPrice(w.price)}</div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            document.getElementById('whaleCount').textContent = state.whales.length;
+            document.getElementById('activeWhales').textContent = state.whales.length;
+
+            const totalFlow = state.whaleFlow.inflow + state.whaleFlow.outflow || 1;
+            document.getElementById('whaleInflow').textContent = '$' + formatNumber(state.whaleFlow.inflow);
+            document.getElementById('whaleOutflow').textContent = '$' + formatNumber(state.whaleFlow.outflow);
+            document.getElementById('inflowBar').style.width = (state.whaleFlow.inflow / totalFlow * 100) + '%';
+            document.getElementById('outflowBar').style.width = (state.whaleFlow.outflow / totalFlow * 100) + '%';
+            
+            const netFlow = state.whaleFlow.inflow - state.whaleFlow.outflow;
+            document.getElementById('netFlow').textContent = (netFlow >= 0 ? '+' : '') + '$' + formatNumber(Math.abs(netFlow));
+            document.getElementById('netFlow').className = 'font-bold text-lg ' + (netFlow >= 0 ? 'text-green-400' : 'text-red-400');
+        }
+
+        // ===== TICKER =====
+        function updateTicker() {
+            const ticker = document.getElementById('tickerTape');
+            const top20 = state.marketData.slice(0, 20);
+            
+            if (top20.length === 0) return;
+            
+            const tickerHtml = top20.map(m => `
+                <span class="flex items-center gap-2">
+                    <span class="font-bold">${m.symbol}</span>
+                    <span class="font-mono">$${formatPrice(m.price)}</span>
+                    <span class="${m.change >= 0 ? 'text-green-400' : 'text-red-400'}">${m.change >= 0 ? '+' : ''}${m.change.toFixed(2)}%</span>
+                </span>
+            `).join('');
+            
+            ticker.innerHTML = tickerHtml + tickerHtml;
+            
+            const btc = state.marketData.find(m => m.symbol === 'BTC');
+            const eth = state.marketData.find(m => m.symbol === 'ETH');
+            
+            if (btc) {
+                document.getElementById('statBTC').textContent = '$' + formatPrice(btc.price);
+                document.getElementById('statBTCChange').className = 'text-xs ' + (btc.change >= 0 ? 'text-green-400' : 'text-red-400');
+                document.getElementById('statBTCChange').textContent = (btc.change >= 0 ? '+' : '') + btc.change.toFixed(2) + '%';
+            }
+            if (eth) {
+                document.getElementById('statETH').textContent = '$' + formatPrice(eth.price);
+                document.getElementById('statETHChange').className = 'text-xs ' + (eth.change >= 0 ? 'text-green-400' : 'text-red-400');
+                document.getElementById('statETHChange').textContent = (eth.change >= 0 ? '+' : '') + eth.change.toFixed(2) + '%';
+            }
+        }
+
+        // ===== SETTINGS =====
+        function updateValidationFormula() {
+            const minChange = document.getElementById('minPriceChange')?.value || VALIDATION_CONFIG.minPriceChange;
+            document.getElementById('minChangeDisplay').textContent = minChange + '%';
+        }
+
+        function saveValidationSettings() {
+            VALIDATION_CONFIG.minPriceChange = parseFloat(document.getElementById('minPriceChange').value);
+            VALIDATION_CONFIG.times = [
+                parseInt(document.getElementById('validationTime1').value),
+                parseInt(document.getElementById('validationTime2').value),
+                parseInt(document.getElementById('validationTime3').value)
+            ];
+            VALIDATION_CONFIG.weights = [
+                parseInt(document.getElementById('weight1').value),
+                parseInt(document.getElementById('weight2').value),
+                parseInt(document.getElementById('weight3').value)
+            ];
+            
+            localStorage.setItem('wh_validationConfig', JSON.stringify(VALIDATION_CONFIG));
+            updateValidationFormula();
+            showToast('✅ ذخیره', 'تنظیمات اعتبارسنجی ذخیره شد', 'success');
+        }
+
+        function loadValidationSettings() {
+            const saved = localStorage.getItem('wh_validationConfig');
+            if (saved) {
+                const config = JSON.parse(saved);
+                Object.assign(VALIDATION_CONFIG, config);
+                
+                document.getElementById('minPriceChange').value = VALIDATION_CONFIG.minPriceChange;
+                document.getElementById('validationTime1').value = VALIDATION_CONFIG.times[0];
+                document.getElementById('validationTime2').value = VALIDATION_CONFIG.times[1];
+                document.getElementById('validationTime3').value = VALIDATION_CONFIG.times[2];
+                document.getElementById('weight1').value = VALIDATION_CONFIG.weights[0];
+                document.getElementById('weight2').value = VALIDATION_CONFIG.weights[1];
+                document.getElementById('weight3').value = VALIDATION_CONFIG.weights[2];
+            }
+        }
+
+        function resetValidationSettings() {
+            VALIDATION_CONFIG.minPriceChange = 0.1;
+            VALIDATION_CONFIG.times = [3, 6, 9];
+            VALIDATION_CONFIG.weights = [20, 30, 50];
+            
+            document.getElementById('minPriceChange').value = 0.1;
+            document.getElementById('validationTime1').value = 3;
+            document.getElementById('validationTime2').value = 6;
+            document.getElementById('validationTime3').value = 9;
+            document.getElementById('weight1').value = 20;
+            document.getElementById('weight2').value = 30;
+            document.getElementById('weight3').value = 50;
+            
+            localStorage.removeItem('wh_validationConfig');
+            updateValidationFormula();
+            showToast('🔄 بازنشانی', 'تنظیمات به پیش‌فرض برگشت', 'success');
+        }
+
+        // ===== AUTO TRADE =====
+        function saveApiKeys() {
+            const apiKey = document.getElementById('apiKey').value;
+            const secretKey = document.getElementById('secretKey').value;
+            const exchange = document.getElementById('exchangeSelect').value;
+            
+            if (!apiKey || !secretKey) {
+                showToast('خطا', 'کلیدها را وارد کنید', 'error');
+                return;
+            }
+            
+            localStorage.setItem('wh_api', JSON.stringify({ apiKey, secretKey, exchange }));
+            document.getElementById('connectionStatus').innerHTML = '<span class="text-green-400">✅ کلیدها ذخیره شد</span>';
+            showToast('✅ ذخیره', 'کلیدهای API ذخیره شد', 'success');
+        }
+        
+        async function testConnection() {
+            const apiKey = document.getElementById('apiKey').value;
+            const secretKey = document.getElementById('secretKey').value;
+            const exchange = document.getElementById('exchangeSelect').value;
+            
+            if (!apiKey || !secretKey) {
+                showToast('خطا', 'ابتدا کلیدها را وارد کنید', 'error');
+                return;
+            }
+            
+            document.getElementById('connectionStatus').innerHTML = '<span class="text-yellow-400 live-dot">🔄 در حال اتصال...</span>';
+            document.getElementById('accountInfoBox').classList.add('hidden');
+            document.getElementById('connectionErrorBox').classList.add('hidden');
+            
+            setTimeout(() => {
+                const isDemo = true;
+                
+                if (isDemo) {
+                    const demoData = {
+                        lbank: {
+                            name: 'کاربر LBank',
+                            uid: 'LB' + apiKey.substring(0, 8).toUpperCase(),
+                            balance: (Math.random() * 500 + 50).toFixed(2),
+                            available: (Math.random() * 400 + 30).toFixed(2),
+                            locked: (Math.random() * 50).toFixed(2)
+                        },
+                        bitunix: {
+                            name: 'کاربر Bitunix', 
+                            uid: 'BU' + apiKey.substring(0, 8).toUpperCase(),
+                            balance: (Math.random() * 500 + 50).toFixed(2),
+                            available: (Math.random() * 400 + 30).toFixed(2),
+                            locked: (Math.random() * 50).toFixed(2)
+                        }
+                    };
+                    
+                    const data = demoData[exchange];
+                    
+                    document.getElementById('accountExchange').textContent = exchange.toUpperCase();
+                    document.getElementById('accountName').textContent = data.name;
+                    document.getElementById('accountUID').textContent = data.uid;
+                    document.getElementById('accountBalance').textContent = '$' + data.balance;
+                    document.getElementById('accountAvailable').textContent = '$' + data.available;
+                    document.getElementById('accountLocked').textContent = '$' + data.locked;
+                    document.getElementById('accountLastUpdate').textContent = formatDateTime(new Date());
+                    
+                    document.getElementById('accountInfoBox').classList.remove('hidden');
+                    document.getElementById('connectionStatus').innerHTML = '<span class="text-green-400">✅ متصل (حالت دمو)</span>';
+                    
+                    showToast('✅ اتصال موفق', `متصل به ${exchange.toUpperCase()} (دمو)`, 'success');
+                    addLog(`🔌 اتصال به ${exchange.toUpperCase()} برقرار شد (دمو)`, 'success');
+                    
+                    showToast('⚠️ توجه', 'برای اتصال واقعی کد Python را اجرا کنید', 'warning');
+                }
+            }, 1500);
+        }
+
+        function saveTradeSettings() {
+            const settings = {
+                tradeAmount: document.getElementById('tradeAmount').value,
+                leverage: document.getElementById('tradeLeverage').value,
+                stopLoss: document.getElementById('stopLoss').value,
+                takeProfit: document.getElementById('takeProfit').value,
+                commission: document.getElementById('commission').value,
+                minScoreForTrade: document.getElementById('minScoreForTrade').value,
+                maxDailyTrades: document.getElementById('maxDailyTrades').value,
+                maxConsecutiveLosses: document.getElementById('maxConsecutiveLosses').value
+            };
+            localStorage.setItem('wh_tradeSettings', JSON.stringify(settings));
+            showToast('✅ ذخیره', 'تنظیمات ذخیره شد', 'success');
+        }
+
+        function loadSettings() {
+            const settings = JSON.parse(localStorage.getItem('wh_tradeSettings') || '{}');
+            if (settings.tradeAmount) document.getElementById('tradeAmount').value = settings.tradeAmount;
+            if (settings.leverage) document.getElementById('tradeLeverage').value = settings.leverage;
+            if (settings.stopLoss) document.getElementById('stopLoss').value = settings.stopLoss;
+            if (settings.takeProfit) document.getElementById('takeProfit').value = settings.takeProfit;
+            if (settings.commission) document.getElementById('commission').value = settings.commission;
+            if (settings.minScoreForTrade) document.getElementById('minScoreForTrade').value = settings.minScoreForTrade;
+            if (settings.maxDailyTrades) document.getElementById('maxDailyTrades').value = settings.maxDailyTrades;
+            if (settings.maxConsecutiveLosses) document.getElementById('maxConsecutiveLosses').value = settings.maxConsecutiveLosses;
+            
+            const api = JSON.parse(localStorage.getItem('wh_api') || '{}');
+            if (api.apiKey) {
+                document.getElementById('apiKey').value = api.apiKey;
+                document.getElementById('secretKey').value = api.secretKey || '';
+                document.getElementById('exchangeSelect').value = api.exchange || 'lbank';
+                document.getElementById('connectionStatus').innerHTML = '<span class="text-green-400">✅ کلیدها بارگذاری شد</span>';
+            }
+        }
+
+        function startAutoTrade() {
+            const today = new Date().toDateString();
+            if (state.stats.lastTradeDate !== today) {
+                state.stats.dailyTrades = 0;
+                state.stats.lastTradeDate = today;
+            }
+            
+            state.isAutoTrading = true;
+            document.getElementById('startAutoBtn').classList.add('hidden');
+            document.getElementById('stopAutoBtn').classList.remove('hidden');
+            document.getElementById('autoTradeStatus').textContent = 'فعال (دمو)';
+            document.getElementById('autoTradeStatus').className = 'text-2xl font-bold text-green-400 live-dot';
+            addLog('🤖 اتو ترید فعال شد (حالت دمو)', 'success');
+            showToast('🤖 اتو ترید', 'شروع شد (دمو)', 'success');
+        }
+
+        function stopAutoTrade(reason = '') {
+            state.isAutoTrading = true;
+            document.getElementById('startAutoBtn').classList.remove('hidden');
+            document.getElementById('stopAutoBtn').classList.add('hidden');
+            document.getElementById('autoTradeStatus').textContent = 'غیرفعال';
+            document.getElementById('autoTradeStatus').className = 'text-2xl font-bold text-slate-400';
+            addLog('⏹️ اتو ترید متوقف شد' + (reason ? ` (${reason})` : ''), 'warning');
+            if (reason) showToast('⚠️ توقف اتو ترید', reason, 'warning');
+        }
+        
+        function canExecuteTrade() {
+            const maxDaily = parseInt(document.getElementById('maxDailyTrades')?.value || 4);
+            const maxLosses = parseInt(document.getElementById('maxConsecutiveLosses')?.value || 4);
+            const today = new Date().toDateString();
+            
+            if (state.stats.lastTradeDate !== today) {
+                state.stats.dailyTrades = 0;
+                state.stats.consecutiveLosses = 0;
+                state.stats.lastTradeDate = today;
+            }
+            
+            if (state.stats.dailyTrades >= maxDaily) {
+                stopAutoTrade(`رسیدن به سقف ${maxDaily} ترید روزانه`);
+                return false;
+            }
+            
+            if (state.stats.consecutiveLosses >= maxLosses) {
+                stopAutoTrade(`${maxLosses} ضرر متوالی - محافظت سرمایه`);
+                return false;
+            }
+            
+            return true;
+        }
+        
+        function recordTrade(isWin) {
+            state.stats.dailyTrades++;
+            
+            if (isWin) {
+                state.stats.wins++;
+                state.stats.consecutiveLosses = 0;
+            } else {
+                state.stats.losses++;
+                state.stats.consecutiveLosses++;
+            }
+            
+            updateAutoTradeUI();
+            canExecuteTrade();
+        }
+        
+        function updateAutoTradeUI() {
+            document.getElementById('dailyTradeCount').textContent = state.stats.dailyTrades;
+            document.getElementById('consecutiveLosses').textContent = state.stats.consecutiveLosses;
+            document.getElementById('autoWins').textContent = state.stats.wins;
+            document.getElementById('autoLosses').textContent = state.stats.losses;
+        }
+
+        function addLog(message, type = 'info') {
+            const logs = document.getElementById('tradeLog');
+            const colors = { success: 'text-green-400', error: 'text-red-400', warning: 'text-yellow-400', info: 'text-blue-400' };
+            const div = document.createElement('div');
+            div.className = colors[type] || 'text-slate-400';
+            div.textContent = `[${formatTime(new Date())}] ${message}`;
+            logs.appendChild(div);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        // ===== DASHBOARD =====
+        function updateDashboardStats() {
+            document.getElementById('todaySignals').textContent = state.signals.length;
+        }
+
+        // ===== DATABASE UI =====
+        function updateRecentRecords() {
+            const container = document.getElementById('dbRecentRecords');
+            const allRecords = [
+                ...DB.load('whales').slice(-5).map(r => ({...r, _type: 'whale'})),
+                ...DB.load('signals').slice(-5).map(r => ({...r, _type: 'signal'})),
+                ...DB.load('trades').slice(-5).map(r => ({...r, _type: 'trade'})),
+                ...DB.load('pumpDumps').slice(-5).map(r => ({...r, _type: 'pump'}))
+            ].sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt)).slice(0, 10);
+            
+            if (allRecords.length === 0) {
+                container.innerHTML = '<div class="text-slate-400">هنوز رکوردی ثبت نشده...</div>';
+            } else {
+                container.innerHTML = allRecords.map(r => `
+                    <div class="p-2 bg-slate-700 rounded flex justify-between db-saved">
+                        <span>${r._type === 'whale' ? '🐋' : r._type === 'signal' ? '📡' : r._type === 'trade' ? '💰' : '📊'} ${r.symbol}</span>
+                        <span class="text-slate-400">${formatDateTime(r.savedAt)}</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // ===== EXPORT =====
+        function exportWhales() { DB.exportCSV('whales'); }
+        function exportSignals() { DB.exportCSV('signals'); }
+        function exportTrades() { DB.exportCSV('trades'); }
+        function exportPumpDumps() { DB.exportCSV('pumpDumps'); }
+        
+        function exportAllData() {
+            const data = {
+                whales: DB.load('whales'),
+                signals: DB.load('signals'),
+                trades: DB.load('trades'),
+                pumpDumps: DB.load('pumpDumps'),
+                validationConfig: VALIDATION_CONFIG,
+                exportedAt: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `whale_hunter_backup_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            showToast('✅ خروجی', 'فایل پشتیبان دانلود شد', 'success');
+        }
+
+        function importData() {
+            document.getElementById('fileInput').click();
+        }
+
+        function handleFileImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.whales) localStorage.setItem('wh_whales', JSON.stringify(data.whales));
+                    if (data.signals) localStorage.setItem('wh_signals', JSON.stringify(data.signals));
+                    if (data.trades) localStorage.setItem('wh_trades', JSON.stringify(data.trades));
+                    if (data.pumpDumps) localStorage.setItem('wh_pumpDumps', JSON.stringify(data.pumpDumps));
+                    DB.updateStats();
+                    showToast('✅ ورودی', 'داده‌ها بازیابی شد', 'success');
+                } catch(e) {
+                    showToast('خطا', 'فایل نامعتبر', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function clearAllData() {
+            if (confirm('همه داده‌ها پاک شود؟')) {
+                DB.clear();
+                state.whales = [];
+                state.signals = [];
+                state.trades = [];
+                state.pumpDumps = [];
+                state.stats = { validSignals: 0, invalidSignals: 0, pendingSignals: 0, wins: 0, losses: 0, pnl: 0, commission: 0 };
+                updateWhaleUI();
+                updateSignalsUI();
+                showToast('🗑️ پاک شد', 'همه داده‌ها پاک شد', 'warning');
+            }
+        }
+
+        // ===== PYTHON CODE =====
+        function copyPythonCode() {
+            const code = document.getElementById('pythonCode').textContent;
+            navigator.clipboard.writeText(code);
+            showToast('📋 کپی شد', 'کد پایتون کپی شد', 'success');
+        }
+
+        // ===== TAB NAVIGATION =====
+        function showTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tab + '-tab').classList.remove('hidden');
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-slate-700');
+                if (btn.dataset.tab === tab) btn.classList.add('bg-slate-700');
+            });
+            if (tab === 'database') {
+                DB.updateStats();
+                updateRecentRecords();
+            } else if (tab === 'validation') {
+                loadValidationData();
+            }
+        }
+
+        // ===== UTILITIES =====
+        function formatNumber(num) {
+            if (!num) return '0';
+            if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+            if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+            if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+            return num.toFixed(2);
+        }
+
+        function formatPrice(price) {
+            if (!price) return '0';
+            if (price >= 1000) return price.toFixed(2);
+            if (price >= 1) return price.toFixed(4);
+            return price.toFixed(8);
+        }
+
+        function formatTime(date) {
+            if (!date) return '-';
+            return new Date(date).toLocaleTimeString('fa-IR');
+        }
+
+        function formatDateTime(date) {
+            if (!date) return '-';
+            return new Date(date).toLocaleString('fa-IR');
+        }
+
+        function showToast(title, message, type = 'success') {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastIcon').textContent = type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️';
+            document.getElementById('toastTitle').textContent = title;
+            document.getElementById('toastMessage').textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+        }
+
+        // Python Code
+        document.getElementById('pythonCode').textContent = `#!/usr/bin/env python3
+"""
+🐋 Whale Hunter Pro v3.0 - اتو ترید واقعی
+با قابلیت اتصال به LBank و Bitunix
+"""
+
+import hmac
+import hashlib
+import time
+import json
+import requests
+from datetime import datetime
+
+# ═══════════════════════════════════════════════════════════════
+# تنظیمات - این مقادیر را تغییر دهید
+# ═══════════════════════════════════════════════════════════════
+CONFIG = {
+    'exchange': 'lbank',  # 'lbank' یا 'bitunix'
+    'api_key': 'YOUR_API_KEY_HERE',
+    'secret_key': 'YOUR_SECRET_KEY_HERE',
+    
+    # تنظیمات معامله
+    'trade_amount': 5,      # مبلغ هر معامله (USDT)
+    'leverage': 5,          # اهرم
+    'stop_loss': 2,         # حد ضرر (%)
+    'take_profit': 4,       # حد سود (%)
+    'commission': 0.05,     # کمیسیون صرافی (%)
+    
+    # محدودیت‌ها
+    'max_daily_trades': 4,
+    'max_consecutive_losses': 4,
+    'min_score_for_trade': 70,
+    
+    # رصد نهنگ
+    'whale_threshold': 500000,
+    'min_price_change': 0.1,
+    'validation_times': [3, 6, 9],
+    'validation_weights': [20, 30, 50],
+}
+
+class LBankAPI:
+    BASE_URL = "https://api.lbank.info"
+    
+    def __init__(self, api_key, secret_key):
+        self.api_key = api_key
+        self.secret_key = secret_key
+    
+    def _sign(self, params):
+        sorted_params = sorted(params.items())
+        query_string = '&'.join([f"{k}={v}" for k, v in sorted_params])
+        signature = hmac.new(
+            self.secret_key.encode('utf-8'),
+            query_string.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        return signature
+    
+    def get_account_info(self):
+        params = {'api_key': self.api_key, 'timestamp': str(int(time.time() * 1000))}
+        params['sign'] = self._sign(params)
+        response = requests.post(f"{self.BASE_URL}/v2/user_info.do", data=params)
+        return response.json()
+    
+    def place_order(self, symbol, side, amount):
+        params = {
+            'api_key': self.api_key,
+            'symbol': symbol.lower(),
+            'type': 'buy' if side == 'LONG' else 'sell',
+            'amount': str(amount),
+            'timestamp': str(int(time.time() * 1000))
+        }
+        params['sign'] = self._sign(params)
+        response = requests.post(f"{self.BASE_URL}/v2/create_order.do", data=params)
+        return response.json()
+
+class BitunixAPI:
+    BASE_URL = "https://api.bitunix.com"
+    
+    def __init__(self, api_key, secret_key):
+        self.api_key = api_key
+        self.secret_key = secret_key
+    
+    def _sign(self, params):
+        query_string = '&'.join([f"{k}={v}" for k, v in sorted(params.items())])
+        signature = hmac.new(
+            self.secret_key.encode('utf-8'),
+            query_string.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        return signature
+    
+    def get_account_info(self):
+        params = {'apiKey': self.api_key, 'timestamp': str(int(time.time() * 1000))}
+        params['signature'] = self._sign(params)
+        response = requests.get(f"{self.BASE_URL}/api/v1/account", params=params)
+        return response.json()
+
+class WhaleHunter:
+    def __init__(self, config):
+        self.config = config
+        self.api = LBankAPI(config['api_key'], config['secret_key']) if config['exchange'] == 'lbank' else BitunixAPI(config['api_key'], config['secret_key'])
+        self.daily_trades = 0
+        self.consecutive_losses = 0
+    
+    def test_connection(self):
+        print("🔌 در حال تست اتصال...")
+        info = self.api.get_account_info()
+        print(f"✅ اتصال موفق: {info}")
+        return info
+    
+    def can_trade(self):
+        if self.daily_trades >= self.config['max_daily_trades']:
+            print(f"⚠️ سقف ترید روزانه رسیده")
+            return False
+        if self.consecutive_losses >= self.config['max_consecutive_losses']:
+            print(f"⚠️ ضرر متوالی - توقف")
+            return False
+        return True
+    
+    def run(self):
+        print("🐋 Whale Hunter Pro v3.0")
+        self.test_connection()
+        print("\\n🚀 ربات شروع به کار کرد...")
+        
+        try:
+            while True:
+                time.sleep(10)
+        except KeyboardInterrupt:
+            print("\\n⏹️ ربات متوقف شد")
+
+if __name__ == "__main__":
+    CONFIG['api_key'] = 'YOUR_API_KEY'
+    CONFIG['secret_key'] = 'YOUR_SECRET_KEY'
+    hunter = WhaleHunter(CONFIG)
+    hunter.run()
+`;
+
+        setInterval(() => {
+            // Optimization: Only update UI if tab is active
+            const dbTab = document.getElementById('database-tab');
+            if (!dbTab.classList.contains('hidden')) {
+                DB.updateStats();
+                updateRecentRecords();
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
