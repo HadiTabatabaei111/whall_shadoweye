@@ -10,6 +10,26 @@
    go build whale_hunter.go
    ./whale_hunter
 ══════════════════════════════════════════════════════════════
+package main
+
+import (
+	"fmt"
+	"net/http"
+	"os"
+)
+
+func main() {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "Go API is running")
+	})
+
+	http.ListenAndServe(":"+port, nil)
+}
 */
 
 package main
@@ -26,6 +46,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
