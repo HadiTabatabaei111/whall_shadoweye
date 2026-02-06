@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: go-api
+    env: go
+    plan: free
+    rootDir: go-service
+    buildCommand: go build -o app
+    startCommand: ./app
+    envVars:
+      - key: PORT
+        value: 8080
+
+  - type: worker
+    name: py-worker
+    env: python
+    plan: free
+    rootDir: py-worker
+    startCommand: python main.py
